@@ -39,12 +39,12 @@ export async function who(req, res) {
     p = { uid: "u" + crypto.randomBytes(8).toString("hex"), sa: false, exp: Date.now() + 30 * 864e5 };
     setCookie(res, p);
   }
-  let role = p.sa ? "sa" : "none", st = null, name = p.sa ? "Super admin" : "";
+  let role = p.sa ? "sa" : "none", st = null, name = p.sa ? "Super admin" : "", emoji = "🙂", color = "#3b5bdb";
   if (!p.sa) {
     const r = await sql`select data from docs where col='members' and id=${p.uid}`;
-    if (r[0]) { st = r[0].data.st; name = r[0].data.nm; if (st === "on") role = r[0].data.role === "mod" ? "mod" : "member"; }
+    if (r[0]) { st = r[0].data.st; name = r[0].data.nm; emoji = r[0].data.e || emoji; color = r[0].data.c || color; if (st === "on") role = r[0].data.role === "mod" ? "mod" : "member"; }
   }
-  return { uid: p.uid, sa: !!p.sa, role, st, name };
+  return { uid: p.uid, sa: !!p.sa, role, st, name, emoji, color };
 }
 export const body = (req) => (req.body && typeof req.body === "object" ? req.body : (() => { try { return JSON.parse(req.body || "{}"); } catch { return {}; } })());
 export const clean = (s, n) => String(s ?? "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, n);

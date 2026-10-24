@@ -1,12 +1,14 @@
 import crypto from "node:crypto";
 import { sql, who, body } from "./_lib.js";
 
-const COLS = ["msgs","groups","gm","polls","votes","scores","ann","hw","sorties","rsvp","bans","members","codes","cfg","ideas","mkt","logs","mood"];
+const COLS = ["msgs","groups","gm","polls","votes","scores","ann","hw","sorties","rsvp","bans","members","codes","cfg","ideas","mkt","logs","mood","cards","prefs"];
+const PRIVATE = new Set(["cards", "prefs"]);
 const SA_ONLY = new Set(["bans", "cfg", "codes", "logs"]);      // écriture réservée au super admin
 const ADM_ONLY = new Set(["ann", "sorties"]);                    // création : admin ou modérateur
 const SELF_ID = {                                                // documents "une par personne"
   votes: (i, u) => i.endsWith("_" + u), rsvp: (i, u) => i.endsWith("_" + u),
   gm: (i, u) => i.endsWith("_" + u), mood: (i, u) => i.startsWith(u + "_"),
+  cards: (i, u) => i.startsWith(u + "_"), prefs: (i, u) => i.startsWith(u + "_"),
 };
 const LOOSE = { msgs: /^(r[0-3]|rep)$/, ideas: /^v$/ };          // modifs permises à tout membre
 const PROT = new Set(["id", "u", "t", "upd", "by"]);
@@ -34,11 +36,25 @@ export default async function handler(req, res) {
         return res.json(out);
       }
       if (!cols.length) return res.json(out);
-      const s = await sql`select col,count(*)::int c,coalesce(max(upd),0)::text m from docs where col=any(${cols}) group by col`;
+      const publicCols = cols.filter((c) => !PRIVATE.has(c)), privateCols = cols.filter((c) => PRIVATE.has(c));
+      const s = publicCols.length
+        ? await sql`select col,count(*)::int c,coalesce(max(upd),0)::text m from docs where col=any(${publicCols}) group by col`
+        : [];
       const hm = {}; s.forEach((x) => (hm[x.col] = x.c + "-" + x.m));
+      if (privateCols.length) {
+        const own = await sql`select col,count(*)::int c,coalesce(max(upd),0)::text m from docs where col=any(${privateCols}) and uid=${me.uid} group by col`;
+        own.forEach((x) => (hm[x.col] = x.c + "-" + x.m));
+      }
       const ch = cols.filter((c) => (hm[c] || "0-0") !== hs[c]);
       if (ch.length) {
-        const rows = await sql`select col,id,data from docs where col=any(${ch}) order by t`;
+        const publicChanged = ch.filter((c) => !PRIVATE.has(c)), privateChanged = ch.filter((c) => PRIVATE.has(c));
+        const rows = publicChanged.length
+          ? await sql`select col,id,data from docs where col=any(${publicChanged}) order by t`
+          : [];
+        if (privateChanged.length) {
+          const own = await sql`select col,id,data from docs where col=any(${privateChanged}) and uid=${me.uid} order by t`;
+          rows.push(...own);
+        }
         ch.forEach((c) => { out[c] = { h: hm[c] || "0-0", docs: rows.filter((x) => x.col === c).slice(-500).map(pub(c, me.role)) }; });
       }
       return res.json(out);
@@ -61,7 +77,7 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       if (col === "members" || (ADM_ONLY.has(col) && !adm(me.role))) return fail(res, 403, "Action non autorisée");
-      const nid = crypto.randomBytes(8).toString("hex");
+      const nid = (PRIVATE.has(col) ? me.uid + "_" : "") + crypto.randomBytes(8).toString("hex");
       const d = { ...strip(b), u: me.uid, by, t: now };
       await sql`insert into docs(col,id,data,uid,t,upd) values(${col},${nid},${JSON.stringify(d)}::jsonb,${me.uid},${now},${now})`;
       return res.json({ id: nid });

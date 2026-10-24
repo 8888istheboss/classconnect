@@ -14,6 +14,16 @@ export default async function handler(req, res) {
       return res.json({ ok: true });
     }
 
+    if (b.action === "profile") {
+      if (me.sa || !["member", "mod"].includes(me.role)) return res.status(403).json({ error: "Accès non autorisé" });
+      const name = clean(b.name, 20);
+      const emoji = clean(b.emoji, 8);
+      const color = clean(b.color, 7);
+      if (!name || !/^#[0-9a-f]{6}$/i.test(color)) return res.status(400).json({ error: "Profil invalide" });
+      await sql`update docs set data=data||${JSON.stringify({ nm: name, e: emoji || "🙂", c: color })}::jsonb, upd=${now} where col='members' and id=${me.uid}`;
+      return res.json({ ok: true });
+    }
+
     if (b.action === "login-sa") {
       const exp = process.env.SUPERADMIN_CODE;
       if (!exp) return res.status(500).json({ error: "SUPERADMIN_CODE n'est pas configuré sur le serveur" });

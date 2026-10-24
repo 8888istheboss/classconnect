@@ -17,7 +17,9 @@
     var h = {}; cols.forEach(function (c) { h[c] = hs[c] || ""; });
     api("/api/db?op=sync", { method: "POST", body: JSON.stringify({ hs: h }) }).then(function (o) {
       Object.keys(o).forEach(function (c) { hs[c] = o[c].h; (subs[c] || []).forEach(function (cb) { cb(snap(o[c].docs)); }); });
-    }).catch(function () {});
+    }).catch(function (e) {
+      window.dispatchEvent(new CustomEvent("cc-cloud-error", { detail: e }));
+    });
   }
   function soon() { clearTimeout(pt); pt = setTimeout(poll, 120); }
   document.addEventListener("visibilitychange", function () { if (!document.hidden) soon(); });
