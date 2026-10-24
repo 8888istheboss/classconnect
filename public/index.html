@@ -241,21 +241,7 @@ function resetLg(){D.scores.slice().forEach(function(s){rm("scores",s.id)})}
 /* ACCÈS, CODES ET CONTRÔLE TOTAL */
 function cfg(){return D.cfg.find(function(c){return c.id==="main"})||{}}
 function saveCfg(o){set("cfg","main",Object.assign({},cfg(),o))}
-function mine(){return D.members.find(function(m){return m.id===UID&&m.st!=="off"})}
-function gated(){return !DB||(!sa&&!mine())}
 function isAdm(){if(sa)return true;var m=mine();return !!m&&m.role==="mod"}
-function gateView(){
-  $("tabs").innerHTML="";$("role").textContent="ACCÈS RÉSERVÉ";
-  var m=D.members.find(function(x){return x.id===UID});
-  $("v").innerHTML=m&&m.st==="off"?'<div class="card"><h2>⛔ Accès suspendu</h2><p>Ton accès a été suspendu par le super admin.</p></div>':'<div class="card"><h2>🔐 Accès réservé</h2><p class="mu">Entre le code d’invitation donné par le super admin.</p><div class="row"><input id="gp" placeholder="Ton pseudo" maxlength="20" value="'+esc(P.n)+'"><input id="gc" placeholder="Code (ex. : CC-7K2M9Q)" maxlength="12" onkeydown="if(event.key===\'Enter\')joinCode()"><button class="p" onclick="joinCode()">Entrer</button></div></div>'
-}
-function joinCode(){
-  var p=val("gp"),cd=val("gc").toUpperCase();if(!p){toast("Choisis un pseudo");return}
-  P.n=p;$("me").value=p;
-  var c=D.codes.find(function(x){return x.cd===cd&&x.on&&(!x.mx||(x.n||0)<x.mx)});
-  if(!c){toast("Code invalide, expiré ou révoqué");return}
-  set("members",UID,{nm:p,role:c.role,cd:cd,st:"on"});upd("codes",c.id,{n:(c.n||0)+1});toast("Bienvenue !")
-}
 V.sa=function(){return'<div class="card"><h2>⚡ Contrôle global</h2><div id="sg"></div></div><div class="card"><h2>🔑 Codes d’invitation</h2><div class="row"><select id="cr"><option value="member">Membre</option><option value="mod">Modérateur</option></select><input id="cx" type="number" min="0" placeholder="Utilisations max (0 = illimité)"><button class="p" onclick="genCode()">Générer un code</button></div><div id="scd"></div></div><div class="card"><h2>👥 Membres</h2><div id="smb"></div></div>'+V.sa0()};
 F.sa=function(){F.sa0();fillSa2()};
 function fillSa2(){
