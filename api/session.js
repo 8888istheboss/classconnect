@@ -8,6 +8,15 @@ const accountName = (s) => clean(s, 20).toLowerCase();
 const passwordHash = (password, salt) => scrypt(password, salt, 64);
 const authIp = (req) => (req.headers["x-forwarded-for"] || "?").split(",")[0].trim().slice(0, 100);
 
+async function tooManyAccountAttempts(ip, now) {
+  const attempt = (await sql`insert into account_attempts(ip,n,until) values(${ip},1,0)
+    on conflict(ip) do update set
+      n=case when account_attempts.until>${now} then account_attempts.n when account_attempts.n+1>=5 then 0 else account_attempts.n+1 end,
+      until=case when account_attempts.until>${now} then account_attempts.until when account_attempts.n+1>=5 then ${now + 300000} else 0 end
+    returning n,until`)[0];
+  return attempt.until > now;
+}
+
 async function consumeInvite(tx, value) {
   const code = clean(value, 20).toUpperCase();
   if (!code) return { error: "Saisis le code d’invitation fourni par le professeur." };
@@ -52,12 +61,7 @@ export default async function handler(req, res) {
       }
 
       const ip = authIp(req);
-      const attempt = (await sql`insert into account_attempts(ip,n,until) values(${ip},1,0)
-        on conflict(ip) do update set
-          n=case when account_attempts.until>${now} then account_attempts.n when account_attempts.n+1>=5 then 0 else account_attempts.n+1 end,
-          until=case when account_attempts.until>${now} then account_attempts.until when account_attempts.n+1>=5 then ${now + 300000} else 0 end
-        returning n,until`)[0];
-      if (attempt.until > now) return res.status(429).json({ error: "Trop d'essais. Réessaie dans quelques minutes." });
+      if (await tooManyAccountAttempts(ip, now)) return res.status(429).json({ error: "Trop d'essais. Réessaie dans quelques minutes." });
 
       if (b.action === "register") {
         if (me.sa || me.role !== "none" || me.st) return res.status(409).json({ error: "Déconnecte-toi avant de créer un autre compte." });
@@ -100,6 +104,8 @@ export default async function handler(req, res) {
       if (me.sa || !me.uid || me.st !== "pend") {
         return res.status(409).json({ error: "Aucun compte en attente à activer." });
       }
+      const ip = authIp(req);
+      if (await tooManyAccountAttempts(ip, now)) return res.status(429).json({ error: "Trop d'essais. Réessaie dans quelques minutes." });
       const result = await sql.begin(async (tx) => {
         const account = (await tx`select uid from accounts where uid=${me.uid}`)[0];
         if (!account) return { error: "Connecte-toi avec le compte élève concerné." };
@@ -111,6 +117,7 @@ export default async function handler(req, res) {
         return { ok: true, st: "on" };
       });
       if (result.error) return res.status(400).json({ error: result.error });
+      await sql`delete from account_attempts where ip=${ip}`;
       await log("Compte activé par code d’invitation : " + me.name);
       return res.json(result);
     }
@@ -135,6 +142,8 @@ export default async function handler(req, res) {
     if (b.action === "join") {
       if (me.sa) return res.json({ ok: true, st: "on" });
       if (me.st) return res.json({ ok: true, st: me.st });
+      const ip = authIp(req);
+      if (await tooManyAccountAttempts(ip, now)) return res.status(429).json({ error: "Trop d'essais. Réessaie dans quelques minutes." });
       const name = clean(b.name, 20), code = clean(b.code, 20).toUpperCase();
       if (!name) return res.status(400).json({ error: "Pseudo requis" });
       const joined = await sql.begin(async (tx) => {
@@ -144,6 +153,7 @@ export default async function handler(req, res) {
         return { ok: true, st: "on" };
       });
       if (joined.error) return res.status(400).json({ error: joined.error });
+      await sql`delete from account_attempts where ip=${ip}`;
       await log("Nouvel accès par code d’invitation : " + name);
       return res.json(joined);
     }
