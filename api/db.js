@@ -38,21 +38,21 @@ export default async function handler(req, res) {
       if (!cols.length) return res.json(out);
       const publicCols = cols.filter((c) => !PRIVATE.has(c)), privateCols = cols.filter((c) => PRIVATE.has(c));
       const s = publicCols.length
-        ? await sql`select col,count(*)::int c,coalesce(max(upd),0)::text m from docs where col=any(${publicCols}) group by col`
+        ? await sql`select col,count(*)::int c,coalesce(max(upd),0)::text m from docs where col=any(${sql.array(publicCols)}) group by col`
         : [];
       const hm = {}; s.forEach((x) => (hm[x.col] = x.c + "-" + x.m));
       if (privateCols.length) {
-        const own = await sql`select col,count(*)::int c,coalesce(max(upd),0)::text m from docs where col=any(${privateCols}) and uid=${me.uid} group by col`;
+        const own = await sql`select col,count(*)::int c,coalesce(max(upd),0)::text m from docs where col=any(${sql.array(privateCols)}) and uid=${me.uid} group by col`;
         own.forEach((x) => (hm[x.col] = x.c + "-" + x.m));
       }
       const ch = cols.filter((c) => (hm[c] || "0-0") !== hs[c]);
       if (ch.length) {
         const publicChanged = ch.filter((c) => !PRIVATE.has(c)), privateChanged = ch.filter((c) => PRIVATE.has(c));
         const rows = publicChanged.length
-          ? await sql`select col,id,data from docs where col=any(${publicChanged}) order by t`
+          ? await sql`select col,id,data from docs where col=any(${sql.array(publicChanged)}) order by t`
           : [];
         if (privateChanged.length) {
-          const own = await sql`select col,id,data from docs where col=any(${privateChanged}) and uid=${me.uid} order by t`;
+          const own = await sql`select col,id,data from docs where col=any(${sql.array(privateChanged)}) and uid=${me.uid} order by t`;
           rows.push(...own);
         }
         ch.forEach((c) => { out[c] = { h: hm[c] || "0-0", docs: rows.filter((x) => x.col === c).slice(-500).map(pub(c, me.role)) }; });

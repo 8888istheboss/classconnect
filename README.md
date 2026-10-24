@@ -1,4 +1,4 @@
-# ClassConnect (Vercel + Neon)
+# ClassConnect (Vercel + PostgreSQL)
 
 Site de classe avec chat, salons, groupes, sondages, sorties laser game, League, super admin,
 codes d'invitation et **validation des nouveaux membres par l'admin**. Tout est vérifié côté serveur.
@@ -11,8 +11,10 @@ Si la base cloud est indisponible ou mal configurée, l'application affiche une 
 de basculer vers un mode local.
 
 1. Dans Vercel, ouvre le projet **classconnect** et lie-le au dépôt GitHub `8888istheboss/classconnect`.
-2. Dans **Storage**, crée ou connecte une base **Neon Postgres** au projet. Vérifie que
-   `DATABASE_URL` est disponible pour l'environnement **Production**.
+2. Crée une base PostgreSQL (Supabase ou Neon) et copie sa chaîne de connexion PostgreSQL.
+   Pour Supabase avec Vercel, ouvre **Connect → Session pooler** et utilise la chaîne URI
+   affichée. Remplace son mot de passe dans le tableau de bord, pas dans le code. Dans Vercel,
+   définis la chaîne complète comme `DATABASE_URL` en Production.
 3. Dans **Settings → Environment Variables**, configure pour **Production** :
    - `SESSION_SECRET` : une valeur aléatoire longue générée de manière sécurisée.
    - `SUPERADMIN_CODE` : un code super admin long et confidentiel.

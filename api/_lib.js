@@ -1,7 +1,9 @@
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import crypto from "node:crypto";
 
-export const sql = neon(process.env.DATABASE_URL);
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("DATABASE_URL manquant dans les variables d'environnement");
+export const sql = postgres(databaseUrl, { ssl: "require", max: 1, prepare: false });
 const SECRET = process.env.SESSION_SECRET;
 let ready;
 
