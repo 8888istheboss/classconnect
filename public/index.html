@@ -85,6 +85,8 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(m){return
 function val(i){var e=$(i);return e?e.value.trim():""}
 function shuf(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
 function days(d){return Math.ceil((new Date(d+"T00:00:00")-new Date().setHours(0,0,0,0))/864e5)}
+function dateValue(v){if(typeof v==="string"&&/^\d{10,13}$/.test(v)){var n=Number(v);return n<1e11?n*1000:n}return v}
+function fmtDate(v,options){var d=new Date(dateValue(v));return Number.isNaN(d.getTime())?"Date inconnue":d.toLocaleString("fr-FR",options)}
 var P={n:"",e:"🙂",c:"#3b5bdb"};
 var UID="",DB=null,admin=false,sa=false,shared=false,booting=true,cloudError="";
 window.addEventListener("cc-cloud-error",function(e){cloudError=e.detail&&e.detail.message||"Erreur de synchronisation avec le cloud.";R()});
@@ -120,7 +122,7 @@ F.acc=function(){
   var np=D.polls.filter(function(p){return !D.votes.some(function(v){return v.p===p.id&&v.u===UID})}).length;
   var hw=D.hw.filter(function(h){var n=days(h.d);return n>=0&&n<=3&&!DONE[h.id]}).sort(function(a,b){return a.d<b.d?-1:1});
   $("nv").innerHTML='<div class="it"><span>💬 Nouveaux messages</span><b>'+un+'</b></div><div class="it"><span>🗳️ Sondages sans ton vote</span><b>'+np+'</b></div><div class="it"><span>📅 Échéances (3 jours)</span><b>'+hw.length+'</b></div>'+hw.map(function(h){return'<div class="mu">• '+esc(h.k)+' '+esc(h.m)+' : J-'+days(h.d)+'</div>'}).join("");
-  $("al").innerHTML=D.ann.length?D.ann.slice().reverse().map(function(a){return'<div class="it"><span>'+esc(a.tx)+'<br><span class="mu">'+esc(a.by)+' · '+new Date(a.t).toLocaleDateString("fr-FR")+'</span></span>'+(can(a)?'<button class="x" onclick="rm(\'ann\',\''+a.id+'\')">✕</button>':'')+'</div>'}).join(""):'<p class="mu">Aucune annonce.</p>'
+  $("al").innerHTML=D.ann.length?D.ann.slice().reverse().map(function(a){return'<div class="it"><span>'+esc(a.tx)+'<br><span class="mu">'+esc(a.by)+' · '+fmtDate(a.t,{year:"numeric",month:"2-digit",day:"2-digit"})+'</span></span>'+(can(a)?'<button class="x" onclick="rm(\'ann\',\''+a.id+'\')">✕</button>':'')+'</div>'}).join(""):'<p class="mu">Aucune annonce.</p>'
 };
 function addAnn(){var t=val("an");if(t){add("ann",{tx:t});$("an").value=""}}
 
@@ -131,7 +133,7 @@ function mh(m){
   if(m.rep&&!can(m))return'<div class="mu">🚩 Message signalé, en attente de modération.</div>';
   var tx=esc(m.tx).replace(/@([\w\-]+)/g,function(a,b){return'<b class="'+(b.toLowerCase()===(P.n||"").toLowerCase()?"me":"")+'">@'+b+'</b>'});
   var rc=["👍","❤️","😂","🔥"].map(function(e,k){return'<button onclick="react(\''+m.id+'\','+k+')">'+e+(m["r"+k]?" "+m["r"+k]:"")+'</button>'}).join("");
-  return'<div class="msg"><div class="av" style="background:'+esc(m.c||"#888")+'33">'+esc(m.e||"🙂")+'</div><div class="bub'+(mine?" mine":"")+'"><b>'+esc(m.by)+'</b> <span class="mu">'+new Date(m.t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+(m.pin?" 📌":"")+'</span>'+(m.re?'<div class="mu">↩ '+esc(m.re.n)+' : '+esc(m.re.x)+'</div>':'')+'<div>'+tx+'</div><div class="acts">'+rc+'<button onclick="reply(\''+m.id+'\')">↩</button><button onclick="upd(\'msgs\',\''+m.id+'\',{rep:true});toast(\'Message signalé\')">🚩</button>'+(admin?'<button onclick="upd(\'msgs\',\''+m.id+'\',{pin:'+(!m.pin)+'})">📌</button>':'')+(can(m)?'<button onclick="rm(\'msgs\',\''+m.id+'\')">🗑</button>':'')+(sa&&m.u!==UID?'<button onclick="ban(\''+m.id+'\')">⛔</button>':'')+'</div></div></div>'
+  return'<div class="msg"><div class="av" style="background:'+esc(m.c||"#888")+'33">'+esc(m.e||"🙂")+'</div><div class="bub'+(mine?" mine":"")+'"><b>'+esc(m.by)+'</b> <span class="mu">'+fmtDate(m.t,{hour:"2-digit",minute:"2-digit"})+(m.pin?" 📌":"")+'</span>'+(m.re?'<div class="mu">↩ '+esc(m.re.n)+' : '+esc(m.re.x)+'</div>':'')+'<div>'+tx+'</div><div class="acts">'+rc+'<button onclick="reply(\''+m.id+'\')">↩</button><button onclick="upd(\'msgs\',\''+m.id+'\',{rep:true});toast(\'Message signalé\')">🚩</button>'+(admin?'<button onclick="upd(\'msgs\',\''+m.id+'\',{pin:'+(!m.pin)+'})">📌</button>':'')+(can(m)?'<button onclick="rm(\'msgs\',\''+m.id+'\')">🗑</button>':'')+(sa&&m.u!==UID?'<button onclick="ban(\''+m.id+'\')">⛔</button>':'')+'</div></div></div>'
 }
 F.chat=function(){
   $("rb").innerHTML=rooms().map(function(r){return'<button class="'+(r[0]===room?"on":"")+'" onclick="room=\''+r[0]+'\';R()">'+esc(r[1])+'</button>'}).join("");
@@ -328,7 +330,7 @@ F.sa=function(){
   var pd=D.members.map(function(m,i){return[m,i]}).filter(function(x){return x[0].st==="pend"});
   if(pd.length)$("smb").insertAdjacentHTML("afterbegin",'<div class="mu">⏳ En attente de validation</div>'+pd.map(function(x){return'<div class="it"><span>'+esc(x[0].nm)+'</span><span><button class="x p" onclick="upd(\'members\',D.members['+x[1]+'].id,{st:\'on\'})">Approuver</button> <button class="x" onclick="mbD('+x[1]+')">Refuser</button></span></div>'}).join(""));
   var lg=D.logs.slice().sort(function(a,b){return b.t-a.t}).slice(0,30);
-  $("slg").innerHTML=lg.length?lg.map(function(l){return'<div class="it"><span>'+esc(l.tx)+'<br><span class="mu">'+esc(l.by)+' · '+new Date(l.t).toLocaleString("fr-FR")+'</span></span></div>'}).join(""):'<p class="mu">Aucune activité enregistrée.</p>'
+  $("slg").innerHTML=lg.length?lg.map(function(l){return'<div class="it"><span>'+esc(l.tx)+'<br><span class="mu">'+esc(l.by)+' · '+fmtDate(l.t)+'</span></span></div>'}).join(""):'<p class="mu">Aucune activité enregistrée.</p>'
 };
 var LBL={genCode:"Code généré",ban:"Utilisateur banni",purge:"Salon vidé",resetLg:"Classement remis à zéro",mbS:"Accès membre modifié",mbD:"Membre retiré",mbR:"Rôle modifié",cdT:"Code révoqué ou réactivé",cdD:"Code supprimé",tgTab:"Section affichée ou masquée"};
 Object.keys(LBL).forEach(function(n){var f=window[n];window[n]=function(){var r=f.apply(null,arguments);logA(LBL[n]);return r}});
