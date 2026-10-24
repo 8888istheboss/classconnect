@@ -69,7 +69,14 @@ export default async function handler(req, res) {
       await sql`delete from docs where col='members' and id=${id}`;
       return res.json({ ok: true });
     }
-    if (me.role === "none") return fail(res, 403, "Accès non autorisé");
+    if (me.role === "none") {
+      const message = me.st === "pend"
+        ? "Ton compte est en attente d’activation par le super admin."
+        : me.st === "off"
+          ? "Ton compte est désactivé. Contacte le super admin."
+          : "Connecte-toi avec un compte membre activé pour envoyer un message.";
+      return fail(res, 403, message);
+    }
     if (SA_ONLY.has(col) && me.role !== "sa") return fail(res, 403, "Réservé au super admin");
     if (JSON.stringify(b).length > 8000) return fail(res, 413, "Contenu trop volumineux");
     const by = me.sa ? String(b.by || "Super admin").slice(0, 20) : me.name;
