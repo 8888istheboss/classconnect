@@ -222,7 +222,17 @@ function fillSa2(){
   $("scd").innerHTML=D.codes.length?D.codes.map(function(x,i){return'<div class="it"><span><b style="font-family:monospace;letter-spacing:.08em">'+esc(x.cd)+'</b> <span class="mu">· '+(x.role==="mod"?"modérateur":"membre")+' · '+(x.n||0)+'/'+(x.mx||"∞")+(x.on?"":" · révoqué")+'</span></span><span><button class="x" onclick="cdT('+i+')">'+(x.on?"Révoquer":"Réactiver")+'</button> <button class="x" onclick="cdD('+i+')">✕</button></span></div>'}).join(""):'<p class="mu">Aucun code.</p>';
   $("smb").innerHTML=D.members.length?D.members.map(function(m,i){return'<div class="it"><span>'+esc(m.nm)+' <span class="mu">· '+(m.role==="mod"?"modérateur":"membre")+(m.st==="off"?" · suspendu":"")+'</span></span><span><button class="x" onclick="mbR('+i+')">'+(m.role==="mod"?"Rétrograder":"Promouvoir")+'</button> <button class="x" onclick="mbS('+i+')">'+(m.st==="off"?"Réactiver":"Suspendre")+'</button> <button class="x" onclick="mbD('+i+')">✕</button></span></div>'}).join(""):'<p class="mu">Aucun membre pour l’instant. Génère un code et donne-le à ta classe.</p>'
 }
-function genCode(){var ch="ABCDEFGHJKMNPQRSTUVWXYZ23456789",s="";for(var i=0;i<6;i++)s+=ch[Math.floor(Math.random()*ch.length)];add("codes",{cd:"CC-"+s,role:val("cr"),mx:parseInt(val("cx"),10)||0,on:true,n:0})}
+async function genCode(){
+  var button=document.querySelector("#scd")&&document.querySelector("#scd").parentNode.querySelector("button.p");
+  if(button)button.disabled=true;
+  try{
+    var r=await CCAPI("/api/invites",{method:"POST",body:JSON.stringify({role:val("cr"),max:val("cx")})});
+    D.codes.unshift(r.invite);F.sa();logA("Code généré");
+    if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(r.invite.code).then(function(){toast("Code créé et copié : "+r.invite.code)}).catch(function(){toast("Code créé : "+r.invite.code)});
+    else toast("Code créé : "+r.invite.code);
+  }catch(e){toast(e.message||"Impossible de créer le code. Vérifie que tu es connecté en Professeur.")}
+  finally{if(button)button.disabled=false}
+}
 function tgTab(k){var o=(cfg().off||[]).slice(),i=o.indexOf(k);if(i>=0)o.splice(i,1);else o.push(k);saveCfg({off:o})}
 function cdT(i){var x=D.codes[i];if(x)upd("codes",x.id,{on:!x.on})}
 function cdD(i){var x=D.codes[i];if(x)rm("codes",x.id)}
@@ -279,7 +289,7 @@ F.sa=function(){
   var lg=D.logs.slice().sort(function(a,b){return b.t-a.t}).slice(0,30);
   $("slg").innerHTML=lg.length?lg.map(function(l){return'<div class="it"><span>'+esc(l.tx)+'<br><span class="mu">'+esc(l.by)+' · '+fmtDate(l.t)+'</span></span></div>'}).join(""):'<p class="mu">Aucune activité enregistrée.</p>'
 };
-var LBL={genCode:"Code généré",ban:"Utilisateur banni",purge:"Salon vidé",resetLg:"Classement remis à zéro",mbS:"Accès membre modifié",mbD:"Membre retiré",mbR:"Rôle modifié",cdT:"Code révoqué ou réactivé",cdD:"Code supprimé",tgTab:"Section affichée ou masquée"};
+var LBL={ban:"Utilisateur banni",purge:"Salon vidé",resetLg:"Classement remis à zéro",mbS:"Accès membre modifié",mbD:"Membre retiré",mbR:"Rôle modifié",cdT:"Code révoqué ou réactivé",cdD:"Code supprimé",tgTab:"Section affichée ou masquée"};
 Object.keys(LBL).forEach(function(n){var f=window[n];window[n]=function(){var r=f.apply(null,arguments);logA(LBL[n]);return r}});
 
 V.set=function(){
