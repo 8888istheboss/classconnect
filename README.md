@@ -21,6 +21,10 @@ de basculer vers un mode local.
 4. Redéploie le projet pour appliquer les variables. Les tables PostgreSQL sont créées
    automatiquement au premier appel de l'API.
 
+Les élèves peuvent créer un compte avec un pseudo et un mot de passe d'au moins 8 caractères.
+Le compte reste en attente jusqu'à son activation par le super admin dans l'onglet **Super admin**.
+Les mots de passe sont hachés côté serveur et ne sont jamais enregistrés en clair.
+
 Ne place jamais `DATABASE_URL`, `SESSION_SECRET` ou `SUPERADMIN_CODE` dans les fichiers du
 projet ou dans Git. Si l'API `/api/session` répond avec une erreur de connexion PostgreSQL,
 vérifie la valeur de `DATABASE_URL` dans les paramètres Vercel et redéploie.

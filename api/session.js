@@ -1,7 +1,12 @@
 import crypto from "node:crypto";
+import { promisify } from "node:util";
 import { sql, who, body, setCookie, clean, log } from "./_lib.js";
 
 const norm = (s) => crypto.createHash("sha256").update(String(s ?? "").toLowerCase().trim().replace(/\s+/g, " ")).digest();
+const scrypt = promisify(crypto.scrypt);
+const accountName = (s) => clean(s, 20).toLowerCase();
+const passwordHash = (password, salt) => scrypt(password, salt, 64);
+const authIp = (req) => (req.headers["x-forwarded-for"] || "?").split(",")[0].trim().slice(0, 100);
 
 export default async function handler(req, res) {
   try {
@@ -22,6 +27,57 @@ export default async function handler(req, res) {
       if (!name || !/^#[0-9a-f]{6}$/i.test(color)) return res.status(400).json({ error: "Profil invalide" });
       await sql`update docs set data=data||${JSON.stringify({ nm: name, e: emoji || "🙂", c: color })}::jsonb, upd=${now} where col='members' and id=${me.uid}`;
       return res.json({ ok: true });
+    }
+
+    if (b.action === "register" || b.action === "login") {
+      const username = accountName(b.name);
+      const password = typeof b.password === "string" ? b.password : "";
+      if (!/^[\p{L}\p{N}_.-]{3,20}$/u.test(username)) {
+        return res.status(400).json({ error: "Le pseudo doit contenir 3 à 20 caractères : lettres, chiffres, point, tiret ou underscore." });
+      }
+      if (password.length < 8 || password.length > 128) {
+        return res.status(400).json({ error: "Le mot de passe doit contenir entre 8 et 128 caractères." });
+      }
+
+      const ip = authIp(req);
+      const attempt = (await sql`insert into account_attempts(ip,n,until) values(${ip},1,0)
+        on conflict(ip) do update set
+          n=case when account_attempts.until>${now} then account_attempts.n when account_attempts.n+1>=5 then 0 else account_attempts.n+1 end,
+          until=case when account_attempts.until>${now} then account_attempts.until when account_attempts.n+1>=5 then ${now + 300000} else 0 end
+        returning n,until`)[0];
+      if (attempt.until > now) return res.status(429).json({ error: "Trop d'essais. Réessaie dans quelques minutes." });
+
+      if (b.action === "register") {
+        if (me.sa || me.role !== "none" || me.st) return res.status(409).json({ error: "Déconnecte-toi avant de créer un autre compte." });
+        const uid = "u" + crypto.randomBytes(12).toString("hex");
+        const salt = crypto.randomBytes(16).toString("base64url");
+        const hash = await passwordHash(password, salt);
+        try {
+          await sql.begin(async (tx) => {
+            await tx`insert into accounts(username,uid,salt,password_hash,created_at) values(${username},${uid},${salt},${hash.toString("hex")},${now})`;
+            await tx`insert into docs(col,id,data,uid,t,upd) values('members',${uid},${JSON.stringify({ nm: clean(b.name, 20), role: "member", st: "pend" })}::jsonb,${uid},${now},${now})`;
+          });
+        } catch (e) {
+          if (e.code === "23505") return res.status(409).json({ error: "Ce pseudo est déjà utilisé. Choisis-en un autre." });
+          throw e;
+        }
+        await sql`delete from account_attempts where ip=${ip}`;
+        setCookie(res, { uid, sa: false, exp: now + 30 * 864e5 });
+        await log("Nouvelle inscription : " + clean(b.name, 20));
+        return res.status(201).json({ ok: true, st: "pend" });
+      }
+
+      const account = (await sql`select uid,salt,password_hash from accounts where username=${username}`)[0];
+      const hash = account ? await passwordHash(password, account.salt) : await passwordHash(password, "classconnect-invalid-user");
+      const storedHash = account ? Buffer.from(account.password_hash, "hex") : Buffer.alloc(0);
+      const valid = !!account && storedHash.length === hash.length && crypto.timingSafeEqual(hash, storedHash);
+      if (!valid) {
+        return res.status(401).json({ error: "Pseudo ou mot de passe incorrect." });
+      }
+      await sql`delete from account_attempts where ip=${ip}`;
+      setCookie(res, { uid: account.uid, sa: false, exp: now + 30 * 864e5 });
+      const member = (await sql`select data from docs where col='members' and id=${account.uid}`)[0];
+      return res.json({ ok: true, st: member ? member.data.st : "off" });
     }
 
     if (b.action === "login-sa") {

@@ -259,7 +259,7 @@ function mbS(i){var m=D.members[i];if(m)upd("members",m.id,{st:m.st==="off"?"on"
 function mbD(i){var m=D.members[i];if(m)rm("members",m.id)}
 
 /* CONNEXION, SÉCURITÉ ET NOUVELLES FONCTIONS */
-var gateTab="el";
+var gateTab="el",authMode="login";
 function gated(){return !DB||(!sa&&!mine())}
 function mine(){return D.members.find(function(m){return m.id===UID&&m.st!=="off"&&m.st!=="pend"})}
 function logA(t){if(DB||sa)add("logs",{tx:t})}
@@ -270,18 +270,8 @@ function gateView(){
   if(isSA)b=ps+'<input id="gs" type="password" placeholder="Code super admin" style="width:100%;margin-bottom:8px" onkeydown="if(event.key===\'Enter\')saLogin()"><button class="p" onclick="saLogin()" style="width:100%">Accéder au centre de contrôle</button>';
   else if(m&&m.st==="off")b='<p>⛔ Ton accès a été suspendu par le super admin.</p>';
   else if(m&&m.st==="pend")b='<p>⏳ Ta demande est en attente de validation par le super admin.</p>';
-  else b=ps+(DB&&!m?'<input id="gc" placeholder="Code d’invitation (ex. : CC-7K2M9Q)" maxlength="12" style="width:100%;margin-bottom:8px" onkeydown="if(event.key===\'Enter\')joinCode()">':'')+'<button class="p" onclick="joinCode()" style="width:100%">'+(m?"Se reconnecter":"Entrer")+'</button>';
+  else b=ps+'<input id="gpw" type="password" placeholder="Mot de passe (8 caractères minimum)" minlength="8" maxlength="128" autocomplete="'+(authMode==="register"?"new-password":"current-password")+'" style="width:100%;margin-bottom:8px" onkeydown="if(event.key===\'Enter\')accountSubmit()"><button class="p" onclick="accountSubmit()" style="width:100%">'+(authMode==="register"?"Créer mon compte":"Se connecter")+'</button><p class="mu">'+(authMode==="register"?'Le super admin devra activer ton compte avant l’accès.':'')+'</p><button class="x" onclick="authMode=\''+(authMode==="register"?"login":"register")+'\';R()">'+(authMode==="register"?"J’ai déjà un compte":"Créer un compte")+'</button>';
   $("v").innerHTML='<div class="card" style="max-width:420px;margin:30px auto;text-align:center"><div class="big" style="font-size:1.5rem">◢ CLASSCONNECT</div><p class="mu">Connecte-toi pour accéder à ta classe</p><div class="row" style="justify-content:center"><button class="'+(isSA?"":"on")+'" onclick="gateTab=\'el\';R()">Élève</button><button class="'+(isSA?"on":"")+'" onclick="gateTab=\'sa\';R()">Super admin</button></div>'+b+'</div>'
-}
-function joinCode(){
-  var p=val("gp");if(!p){toast("Choisis un pseudo");return}
-  P.n=p;$("me").value=p;
-  if(!DB){toast("Connexion cloud indisponible.");return}
-  if(mine()){CCAPI("/api/session",{method:"POST",body:JSON.stringify({action:"join",name:p})}).then(function(){R()}).catch(err);return}
-  var cd=val("gc").toUpperCase(),c=D.codes.find(function(x){return x.cd===cd&&x.on&&(!x.mx||(x.n||0)<x.mx)});
-  if(!c){toast("Code invalide, expiré ou révoqué");return}
-  var pend=!!cfg().appr&&c.role!=="mod";
-  CCAPI("/api/session",{method:"POST",body:JSON.stringify({action:"join",name:p,code:cd})}).then(function(r){toast(r.st==="pend"?"Demande envoyée":"Bienvenue !");setTimeout(function(){location.reload()},800)}).catch(err)
 }
 
 /* IDEES (boîte anonyme) */
