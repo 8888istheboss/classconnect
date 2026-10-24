@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ClassConnect</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#1b1f2a;--mu:#6a7183;--ac:#3b5bdb;--ok:#2b8a3e;--ko:#c92a2a;--bd:#dfe3ee;--me:#e7ecff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141b;--card:#1c1f29;--tx:#eef0f6;--mu:#9aa1b5;--ac:#7c96ff;--ok:#69db7c;--ko:#ff8787;--bd:#313648;--me:#27304f}}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45}
+main{max-width:760px;margin:0 auto;padding:14px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+h1{font-size:1.5rem;margin:0}
+h1 small{display:block;font-size:.8rem;font-weight:500;color:var(--mu)}
+h2{font-size:1.05rem;margin:0 0 10px}
+button,input,select,textarea{font:inherit;border-radius:10px;border:1px solid var(--bd);padding:9px 12px;background:var(--card);color:var(--tx)}
+button{cursor:pointer;font-weight:600}
+button:active{transform:scale(.97)}
+.p,.on{background:var(--ac)!important;border-color:var(--ac)!important;color:#fff!important}
+.bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.bar button{padding:7px 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.row input,.row textarea{flex:1;min-width:110px}
+.it{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--bd)}
+.it:first-of-type{border-top:0}
+.mu{color:var(--mu);font-size:.85rem}
+.big{font-size:1.25rem;font-weight:800}
+.x{padding:3px 8px;font-size:.8rem}
+#ml{height:48vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px}
+.msg{display:flex;gap:8px;align-items:flex-start}
+.av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;font-size:1.1rem}
+.bub{background:var(--bg);border-radius:12px;padding:6px 10px;max-width:100%;word-break:break-word}
+.bub.mine{background:var(--me)}
+.acts{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.acts button{padding:1px 7px;font-size:.78rem;font-weight:500}
+.pin{background:var(--me);border-radius:10px;padding:6px 10px;margin-bottom:6px;font-size:.9rem}
+b.me{background:#ffd43b;color:#111;border-radius:4px;padding:0 3px}
+.fc{min-height:110px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:1.15rem;font-weight:700;cursor:pointer;border:2px dashed var(--bd);border-radius:12px;padding:14px;margin:8px 0}
+.opts{display:grid;gap:8px;margin-top:10px}
+.opts button{text-align:left}
+.good{background:var(--ok)!important;border-color:var(--ok)!important;color:#111!important}
+.bad{background:var(--ko)!important;border-color:var(--ko)!important;color:#111!important}
+.pb{height:8px;border-radius:6px;background:var(--ac);margin-top:4px}
+.done{text-decoration:line-through;color:var(--mu)}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:10px;display:none;z-index:9;max-width:90%}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap">
+<style>
+:root{--bg:#eef3fb;--card:#ffffffd9;--tx:#0b1630;--mu:#55658a;--ac:#0a6cff;--ac2:#6a3dff;--ok:#0a8f55;--ko:#d6285a;--bd:#cfd9ee;--me:#e1ecff;--on:#fff;--glow:#0a6cff33;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#060a14;--card:#0d1426d9;--tx:#e6f1ff;--mu:#8095b8;--ac:#00e5ff;--ac2:#8a5cff;--ok:#2cff9a;--ko:#ff4d6d;--bd:#1b2a4a;--me:#0e2a46;--on:#021018;--glow:#00e5ff33}}
+:root[data-theme="dark"]{--bg:#060a14;--card:#0d1426d9;--tx:#e6f1ff;--mu:#8095b8;--ac:#00e5ff;--ac2:#8a5cff;--ok:#2cff9a;--ko:#ff4d6d;--bd:#1b2a4a;--me:#0e2a46;--on:#021018;--glow:#00e5ff33}
+body{background:radial-gradient(900px 500px at 85% -10%,var(--glow),transparent 60%),radial-gradient(700px 400px at -10% 10%,#8a5cff22,transparent 60%),var(--bg);background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;background:linear-gradient(var(--bd) 1px,transparent 1px) 0 0/44px 44px,linear-gradient(90deg,var(--bd) 1px,transparent 1px) 0 0/44px 44px;opacity:.35;pointer-events:none;z-index:-1}
+h1,h2,.big,.bar button{font-family:Orbitron,"Segoe UI",system-ui,sans-serif}
+h1{font-size:1.25rem;letter-spacing:.14em;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;background-clip:text;color:transparent}
+h1 small{-webkit-text-fill-color:var(--mu);letter-spacing:.12em;font-size:.62rem;font-family:system-ui,sans-serif}
+#role{-webkit-text-fill-color:var(--ac);font-weight:700}
+h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.12em;color:var(--ac)}
+.card{backdrop-filter:blur(10px);border-top:2px solid var(--ac);box-shadow:0 0 24px var(--glow);border-radius:12px}
+.bar button{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;border-radius:8px}
+button:hover{border-color:var(--ac)}
+.p,.on{background:linear-gradient(135deg,var(--ac),var(--ac2))!important;color:var(--on)!important;border-color:transparent!important;box-shadow:0 0 14px var(--glow)}
+.tms{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0}
+.tm{border:1px solid var(--bd);border-left-width:4px;border-radius:10px;padding:8px}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>◢ CLASSCONNECT<small>NOTRE CLASSE, NOTRE UNIVERS · <span id="role"></span></small></h1>
+<input id="me" placeholder="Ton pseudo" maxlength="20" style="width:150px"><button onclick="logout()" title="Déconnexion">⎋</button>
+</header>
+<div id="bn"></div><div class="bar" id="tabs"></div>
+<div id="v"></div>
+<p class="mu" id="st"></p>
+</main>
+<div id="toast"></div>
+<script src="/shim.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(m){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]})}
+function val(i){var e=$(i);return e?e.value.trim():""}
+function shuf(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function days(d){return Math.ceil((new Date(d+"T00:00:00")-new Date().setHours(0,0,0,0))/864e5)}
+var LS={get:function(k,d){try{var r=localStorage.getItem(k);return r?JSON.parse(r):d}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+var P=LS.get("cc-p",{n:"",e:"🙂",c:"#3b5bdb",uid:""});
+if(!P.uid){P.uid="u"+Math.random().toString(36).slice(2,10);LS.set("cc-p",P)}
+var UID=P.uid,DB=null,admin=true,sa=LS.get("cc-sa",0)===1,shared=false;
+var D={msgs:[],groups:[],gm:[],polls:[],votes:[],scores:[],ann:[],hw:[],sorties:[],rsvp:[],bans:[],members:[],codes:[],cfg:[],ideas:[],mkt:[],logs:[]};
+var SEEN=LS.get("cc-seen",{}),DONE=LS.get("cc-done",{}),CARDS=LS.get("cc-cards",[{m:"Maths",q:"Aire d’un cercle ?",a:"π × r²"},{m:"Histoire",q:"Année de la Révolution française ?",a:"1789"},{m:"Sciences",q:"Que produisent les plantes avec la lumière ?",a:"De l’oxygène (photosynthèse)"}]);
+var tab="acc",room="gen",rp=null,ci=0,fl=false,Z=null;
+var TABS=[["acc","🏠 Accueil"],["chat","💬 Chat"],["grp","👥 Groupes"],["plan","📅 Planning"],["rev","📚 Révisions"],["lg","🏆 League"],["pol","🗳️ Sondages"],["sor","🎯 Sorties"],["ide","💡 Idées"],["mkt","🔄 Échange"],["dir","📇 Annuaire"],["sa","👑 Super admin"],["set","⚙️ Réglages"]];
+var BASE=[["gen","# Général"],["dev","# Devoirs"],["jeu","# Jeux"],["pro","# Projets"],["mat","Maths"],["fra","Français"],["his","Histoire"],["sci","Sciences"]];
+
+/* données : db partagée ou stockage local */
+function err(e){toast("Action refusée : demande à l’admin de te donner l’accès pour écrire.")}
+function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},3500)}
+function sv(n){LS.set("cc-d-"+n,D[n])}
+function add(n,o){o.t=Date.now();o.u=UID;o.by=P.n||"Anonyme";if(DB)return DB.collection(n).add(o).catch(err);o.id="l"+o.t+Math.random().toString(36).slice(2,5);D[n].push(o);sv(n);L()}
+function set(n,id,o){o.t=Date.now();o.u=UID;o.id=id;o.by=P.n||"Anonyme";if(DB)return DB.doc(n+"/"+id).set(o).catch(err);D[n]=D[n].filter(function(x){return x.id!==id});D[n].push(o);sv(n);L()}
+function upd(n,id,o){if(DB)return DB.doc(n+"/"+id).update(o).catch(err);var x=D[n].find(function(y){return y.id===id});if(x)Object.assign(x,o);sv(n);L()}
+function rm(n,id){if(DB)return DB.doc(n+"/"+id).delete().catch(err);D[n]=D[n].filter(function(x){return x.id!==id});sv(n);L()}
+function sub(n){DB.collection(n).orderBy("t").limit(500).onSnapshot(function(s){D[n]=s.docs.map(function(d){var x=d.data();x.id=d.id;return x});L()},function(){})}
+function can(x){return admin||x.u===UID}
+function name(){return P.n||"Anonyme"}
+
+/* navigation */
+var V={},F={};
+function R(){admin=isAdm();if(tab==="sa"&&!sa)tab="acc";if(tab!=="acc"&&tab!=="set"&&!sa&&(cfg().off||[]).indexOf(tab)>=0)tab="acc";$("bn").innerHTML=cfg().bn?'<div class="card" style="border-top-color:var(--ko)">📢 '+esc(cfg().bn)+'</div>':"";if(gated()){gateView();return}$("role").textContent=sa?"👑 SUPER ADMIN":admin?"MODÉRATEUR":"MEMBRE";$("tabs").innerHTML=TABS.filter(function(t){return t[0]==="sa"?sa:(sa||(cfg().off||[]).indexOf(t[0])<0)}).map(function(t){return'<button class="'+(t[0]===tab?"on":"")+'" onclick="go(\''+t[0]+'\')">'+t[1]+'</button>'}).join("");$("v").innerHTML=V[tab]();if(F[tab])F[tab]();$("st").textContent=shared?"Mode partagé : les données sont communes à toutes les personnes qui ont accès à cette page.":"Mode local : les données restent sur cet appareil.";}
+function go(t){tab=t;R()}
+function L(){admin=isAdm();var g=gated(),k=JSON.stringify(cfg().off||[])+(cfg().bn||"")+(mine()?mine().role:"");if(g!==L.g||k!==L.k){L.g=g;L.k=k;R();return}if(!g&&F[tab])F[tab]()}
+function rooms(){var r=BASE.slice();D.groups.forEach(function(g){if(D.gm.some(function(m){return m.g===g.id&&m.u===UID}))r.push(["g:"+g.id,"👥 "+g.nm])});return r}
+
+/* ACCUEIL */
+V.acc=function(){return'<div class="card"><h2>🔔 Nouveautés</h2><div id="nv"></div></div><div class="card"><h2>📢 Annonces</h2>'+(admin?'<div class="row"><input id="an" placeholder="Nouvelle annonce" maxlength="200"><button class="p" onclick="addAnn()">Publier</button></div>':'')+'<div id="al"></div></div>'};
+F.acc=function(){
+  var un=D.msgs.filter(function(m){return m.u!==UID&&m.t>(SEEN[m.room]||0)}).length;
+  var np=D.polls.filter(function(p){return !D.votes.some(function(v){return v.p===p.id&&v.u===UID})}).length;
+  var hw=D.hw.filter(function(h){var n=days(h.d);return n>=0&&n<=3&&!DONE[h.id]}).sort(function(a,b){return a.d<b.d?-1:1});
+  $("nv").innerHTML='<div class="it"><span>💬 Nouveaux messages</span><b>'+un+'</b></div><div class="it"><span>🗳️ Sondages sans ton vote</span><b>'+np+'</b></div><div class="it"><span>📅 Échéances (3 jours)</span><b>'+hw.length+'</b></div>'+hw.map(function(h){return'<div class="mu">• '+esc(h.k)+' '+esc(h.m)+' : J-'+days(h.d)+'</div>'}).join("");
+  $("al").innerHTML=D.ann.length?D.ann.slice().reverse().map(function(a){return'<div class="it"><span>'+esc(a.tx)+'<br><span class="mu">'+esc(a.by)+' · '+new Date(a.t).toLocaleDateString("fr-FR")+'</span></span>'+(can(a)?'<button class="x" onclick="rm(\'ann\',\''+a.id+'\')">✕</button>':'')+'</div>'}).join(""):'<p class="mu">Aucune annonce.</p>'
+};
+function addAnn(){var t=val("an");if(t){add("ann",{tx:t});$("an").value=""}}
+
+/* CHAT */
+V.chat=function(){return'<div class="card"><div class="bar" id="rb"></div><div class="row"><input id="sq" placeholder="🔍 Rechercher dans ce salon" oninput="L()"></div><div id="pins"></div><div id="ml"></div><div id="rpl" class="mu"></div><div class="row" style="margin:8px 0 0"><input id="mi" placeholder="Écrire un message… (@pseudo pour mentionner)" maxlength="300" onkeydown="if(event.key===\'Enter\')send()"><button class="p" onclick="send()">Envoyer</button></div></div>'};
+function mh(m){
+  var mine=m.u===UID;
+  if(m.rep&&!can(m))return'<div class="mu">🚩 Message signalé, en attente de modération.</div>';
+  var tx=esc(m.tx).replace(/@([\w\-]+)/g,function(a,b){return'<b class="'+(b.toLowerCase()===(P.n||"").toLowerCase()?"me":"")+'">@'+b+'</b>'});
+  var rc=["👍","❤️","😂","🔥"].map(function(e,k){return'<button onclick="react(\''+m.id+'\','+k+')">'+e+(m["r"+k]?" "+m["r"+k]:"")+'</button>'}).join("");
+  return'<div class="msg"><div class="av" style="background:'+esc(m.c||"#888")+'33">'+esc(m.e||"🙂")+'</div><div class="bub'+(mine?" mine":"")+'"><b>'+esc(m.by)+'</b> <span class="mu">'+new Date(m.t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+(m.pin?" 📌":"")+'</span>'+(m.re?'<div class="mu">↩ '+esc(m.re.n)+' : '+esc(m.re.x)+'</div>':'')+'<div>'+tx+'</div><div class="acts">'+rc+'<button onclick="reply(\''+m.id+'\')">↩</button><button onclick="upd(\'msgs\',\''+m.id+'\',{rep:true});toast(\'Message signalé\')">🚩</button>'+(admin?'<button onclick="upd(\'msgs\',\''+m.id+'\',{pin:'+(!m.pin)+'})">📌</button>':'')+(can(m)?'<button onclick="rm(\'msgs\',\''+m.id+'\')">🗑</button>':'')+(sa&&m.u!==UID?'<button onclick="ban(\''+m.id+'\')">⛔</button>':'')+'</div></div></div>'
+}
+F.chat=function(){
+  $("rb").innerHTML=rooms().map(function(r){return'<button class="'+(r[0]===room?"on":"")+'" onclick="room=\''+r[0]+'\';R()">'+esc(r[1])+'</button>'}).join("");
+  var q=val("sq").toLowerCase();
+  var ms=D.msgs.filter(function(m){return m.room===room&&(sa||!bn(m.u))&&(!q||String(m.tx).toLowerCase().indexOf(q)>=0)}).sort(function(a,b){return a.t-b.t});
+  $("pins").innerHTML=ms.filter(function(m){return m.pin}).map(function(m){return'<div class="pin">📌 <b>'+esc(m.by)+'</b> : '+esc(m.tx)+'</div>'}).join("");
+  var el=$("ml"),near=el.scrollHeight-el.scrollTop-el.clientHeight<80;
+  el.innerHTML=ms.length?ms.map(mh).join(""):'<p class="mu">Aucun message. Lance la discussion !</p>';
+  if(near)el.scrollTop=el.scrollHeight;
+  SEEN[room]=Date.now();LS.set("cc-seen",SEEN);
+  $("rpl").innerHTML=rp?'↩ Réponse à '+esc(rp.by)+' <button class="x" onclick="rp=null;L()">✕</button>':""
+};
+function send(){var t=val("mi");if(!t)return;if(cfg().lock&&!admin){toast("Chat verrouillé par l’administration.");return}if(bn(UID)){toast("Tu ne peux plus écrire dans le chat.");return}if(!P.n){toast("Choisis d’abord un pseudo en haut.");return}var o={room:room,tx:t.slice(0,300),e:P.e,c:P.c};if(rp)o.re={n:rp.by,x:String(rp.tx).slice(0,40)};add("msgs",o);$("mi").value="";rp=null;var e=$("ml");if(e)setTimeout(function(){e.scrollTop=e.scrollHeight},50)}
+function react(id,k){var m=D.msgs.find(function(x){return x.id===id});if(!m)return;var o={};o["r"+k]=(m["r"+k]||0)+1;upd("msgs",id,o)}
+function reply(id){rp=D.msgs.find(function(x){return x.id===id});L();$("mi").focus()}
+
+/* GROUPES */
+V.grp=function(){return'<div class="card"><h2>➕ Créer un groupe</h2><div class="row"><input id="gn" placeholder="Nom (ex. : Exposé d’histoire)" maxlength="40"><input id="gd" placeholder="Description" maxlength="80"><button class="p" onclick="addGrp()">Créer</button></div></div><div class="card"><h2>👥 Groupes</h2><div id="gl"></div></div>'};
+F.grp=function(){
+  $("gl").innerHTML=D.groups.length?D.groups.map(function(g){
+    var ms=D.gm.filter(function(m){return m.g===g.id}),me=ms.some(function(m){return m.u===UID});
+    return'<div class="it"><span><b>'+esc(g.nm)+'</b><br><span class="mu">'+esc(g.ds)+' · '+ms.length+' membre'+(ms.length>1?"s":"")+'</span></span><span>'+(me?'<button class="x p" onclick="room=\'g:'+g.id+'\';go(\'chat\')">Ouvrir le chat</button> <button class="x" onclick="rm(\'gm\',\''+g.id+'_'+UID+'\')">Quitter</button>':'<button class="x p" onclick="set(\'gm\',\''+g.id+'_'+UID+'\',{g:\''+g.id+'\'})">Rejoindre</button>')+(can(g)?' <button class="x" onclick="rm(\'groups\',\''+g.id+'\')">🗑</button>':'')+'</span></div>'}).join(""):'<p class="mu">Aucun groupe pour l’instant.</p>'
+};
+function addGrp(){var n=val("gn");if(n){add("groups",{nm:n,ds:val("gd")});$("gn").value="";$("gd").value=""}}
+
+/* PLANNING */
+V.plan=function(){return'<div class="card"><h2>➕ Ajouter</h2><div class="row"><select id="pk"><option>Devoir</option><option>Contrôle</option><option>Événement</option></select><input id="pm" placeholder="Matière / titre"><input id="pd" type="date"><button class="p" onclick="addHw()">Ajouter</button></div></div><div class="card"><h2>📅 À venir</h2><div id="hl"></div></div>'};
+F.plan=function(){
+  $("hl").innerHTML=D.hw.length?D.hw.slice().sort(function(a,b){return a.d<b.d?-1:1}).map(function(h){var n=days(h.d);return'<div class="it"><span class="'+(DONE[h.id]?"done":"")+'"><input type="checkbox" '+(DONE[h.id]?"checked":"")+' onchange="DONE[\''+h.id+'\']=this.checked;LS.set(\'cc-done\',DONE);L()"> '+(h.k==="Contrôle"?"📝":h.k==="Événement"?"🎉":"✏️")+' '+esc(h.m)+' <span class="mu">· '+esc(h.d)+' · '+(n>=0?"J-"+n:"passé")+'</span></span>'+(can(h)?'<button class="x" onclick="rm(\'hw\',\''+h.id+'\')">✕</button>':'')+'</div>'}).join(""):'<p class="mu">Rien de prévu.</p>'
+};
+function addHw(){var m=val("pm"),d=val("pd");if(m&&d)add("hw",{k:val("pk"),m:m,d:d})}
+
+/* RÉVISIONS (fiches perso) */
+V.rev=function(){var c=CARDS[ci];return'<div class="card"><h2>🃏 Flashcards</h2>'+(c?'<div class="mu">'+esc(c.m)+' · '+(ci+1)+' / '+CARDS.length+'</div><div class="fc" onclick="fl=!fl;R()">'+esc(fl?c.a:c.q)+'</div><div class="row"><button onclick="cn(-1)">◀</button><button class="p" onclick="fl=!fl;R()">Retourner</button><button onclick="cn(1)">▶</button><button onclick="CARDS=shuf(CARDS);ci=0;fl=false;cs();R()">Mélanger</button><button class="x" onclick="CARDS.splice(ci,1);ci=0;fl=false;cs();R()">Supprimer</button></div>':'<p class="mu">Aucune fiche.</p>')+'</div><div class="card"><h2>➕ Nouvelle fiche</h2><div class="row"><input id="cm" placeholder="Matière"><input id="cq" placeholder="Question"><input id="ca" placeholder="Réponse"><button class="p" onclick="ac()">Ajouter</button></div><p class="mu">Tes fiches restent privées sur cet appareil.</p></div>'};
+function cs(){LS.set("cc-cards",CARDS)}
+function cn(d){ci=(ci+d+CARDS.length)%CARDS.length;fl=false;R()}
+function ac(){var q=val("cq"),a=val("ca");if(q&&a){CARDS.push({m:val("cm")||"Général",q:q,a:a});cs();R()}}
+
+/* CLASS LEAGUE */
+var QP=[["Quelle est la capitale de l’Italie ?","Rome","Milan","Naples","Venise"],["Quel est le plus grand océan ?","Pacifique","Atlantique","Indien","Arctique"],["Quelle planète est la plus proche du Soleil ?","Mercure","Vénus","Mars","Terre"],["Qui a peint la Joconde ?","Léonard de Vinci","Michel-Ange","Picasso","Van Gogh"],["Combien font 7 × 8 ?","56","54","48","63"],["Quelle est la racine carrée de 81 ?","9","8","7","10"],["En quelle année a commencé la Première Guerre mondiale ?","1914","1918","1939","1905"],["Quel gaz les plantes absorbent-elles ?","Dioxyde de carbone","Oxygène","Azote","Hélium"],["Quel est l’animal terrestre le plus rapide ?","Le guépard","Le lion","Le cheval","L’autruche"],["Quel organe pompe le sang ?","Le cœur","Le foie","Les poumons","Le cerveau"]];
+var WK=["Poser une question utile dans le salon Devoirs","Expliquer une notion à un camarade","Créer une fiche de révision","Faire 2 quiz cette semaine","Proposer une idée de sortie dans un sondage"];
+var BG=[[30,"🥉 Débutant"],[100,"🥈 Challenger"],[250,"🥇 Champion"],[500,"👑 Légende"]];
+function tot(){var t={};D.scores.forEach(function(s){t[s.u]=t[s.u]||{n:s.by,p:0};t[s.u].p+=s.pts;t[s.u].n=s.by});return t}
+function badges(p){return BG.filter(function(b){return p>=b[0]}).map(function(b){return b[1]}).join(" · ")||"Pas encore de badge"}
+V.lg=function(){return'<div class="card"><h2>🎯 Défi de la semaine</h2><div>'+WK[Math.floor(Date.now()/6048e5)%WK.length]+'</div></div><div class="card"><h2>🧠 Quiz (10 points par bonne réponse)</h2><div id="qz"></div></div><div class="card"><h2>🏆 Classement</h2><div id="lb"></div></div>'};
+F.lg=function(){
+  if(!$("qz").innerHTML)Qz();
+  var t=tot(),r=Object.keys(t).sort(function(a,b){return t[b].p-t[a].p}).slice(0,10);
+  $("lb").innerHTML=(t[UID]?'<p class="mu">Tes badges : '+badges(t[UID].p)+'</p>':'')+(r.length?r.map(function(u,i){return'<div class="it"><span>'+(i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1+".")+' '+esc(t[u].n)+(u===UID?" (toi)":"")+'</span><b>'+t[u].p+' pts</b></div>'}).join(""):'<p class="mu">Joue un quiz pour apparaître ici.</p>')
+};
+function Qz(){
+  var e=$("qz");if(!e)return;
+  if(!Z){e.innerHTML='<button class="p" onclick="qs()">Commencer</button>';return}
+  if(Z.end){e.innerHTML='<div class="big">Score : '+Z.s+' / '+Z.q.length+'</div><div class="row" style="margin-top:8px"><button class="p" onclick="qs()">Rejouer</button></div>';return}
+  var q=Z.q[Z.i];
+  e.innerHTML='<div class="mu">Question '+(Z.i+1)+' / '+Z.q.length+'</div><div class="big">'+esc(q[0])+'</div><div class="opts">'+shuf(q.slice(1)).map(function(o){return'<button data-v="'+esc(o)+'" onclick="qa(this)">'+esc(o)+'</button>'}).join("")+'</div><div class="row" style="margin-top:8px"><button id="nx" class="p" style="display:none" onclick="qn()">Suivant</button></div>'
+}
+function qs(){Z={q:shuf(QP).slice(0,6),i:0,s:0,a:false};Qz()}
+function qa(b){if(Z.a)return;Z.a=true;var q=Z.q[Z.i];document.querySelectorAll("#qz .opts button").forEach(function(x){if(x.dataset.v===q[1])x.classList.add("good")});if(b.dataset.v===q[1])Z.s++;else b.classList.add("bad");$("nx").style.display="inline-block"}
+function qn(){Z.i++;Z.a=false;if(Z.i>=Z.q.length){Z.end=true;if(Z.s>0)add("scores",{pts:Z.s*10})}Qz()}
+
+/* SONDAGES */
+V.pol=function(){return'<div class="card"><h2>➕ Nouveau sondage</h2><div class="row"><input id="pq" placeholder="Question (ex. : Où va-t-on en sortie ?)" maxlength="100"><input id="po" placeholder="Options séparées par des virgules"><button class="p" onclick="addPol()">Créer</button></div></div><div id="pl"></div>'};
+F.pol=function(){
+  $("pl").innerHTML=D.polls.length?D.polls.slice().reverse().map(function(p){
+    var vs=D.votes.filter(function(v){return v.p===p.id}),my=vs.find(function(v){return v.u===UID});
+    return'<div class="card"><b>'+esc(p.q)+'</b> <span class="mu">par '+esc(p.by)+' · '+vs.length+' vote'+(vs.length>1?"s":"")+'</span>'+(can(p)?' <button class="x" onclick="rm(\'polls\',\''+p.id+'\')">🗑</button>':'')+p.o.map(function(o,i){var n=vs.filter(function(v){return v.o===i}).length;return'<div style="margin-top:8px"><button class="'+(my&&my.o===i?"on":"")+'" onclick="set(\'votes\',\''+p.id+'_'+UID+'\',{p:\''+p.id+'\',o:'+i+'})">'+esc(o)+'</button> <span class="mu">'+n+'</span><div class="pb" style="width:'+(vs.length?Math.round(n/vs.length*100):0)+'%"></div></div>'}).join("")+'</div>'}).join(""):'<p class="mu">Aucun sondage.</p>'
+};
+function addPol(){var q=val("pq"),o=val("po").split(",").map(function(x){return x.trim()}).filter(Boolean).slice(0,6);if(q&&o.length>=2)add("polls",{q:q,o:o})}
+
+/* RÉGLAGES */
+/* SORTIES LASER GAME */
+var TN=["Rouge","Bleue","Verte","Jaune"],TC=["#ff4d6d","#4cc9f0","#2cff9a","#ffd166"];
+var MS=["⚔️ Équipe contre équipe : la base adverse doit tomber en premier.","🚩 Capture de base : protège la tienne, prends celle des autres.","👑 Le VIP : une personne par équipe est protégée, elle vaut double.","🤫 Mission furtive : on joue sans parler, uniquement par signes.","🎯 Chacun pour soi : le meilleur score individuel gagne.","🛡️ Survivant : le dernier de l’équipe encore actif rapporte un bonus."];
+function bn(u){return D.bans.some(function(b){return b.id===u})}
+function arm(k,f){if(arm.k===k){arm.k=null;f()}else{arm.k=k;toast("Clique encore pour confirmer")}}
+V.sor=function(){return(sa?'<div class="card"><h2>Planifier une sortie laser game</h2><div class="row"><input id="sl1" placeholder="Lieu (ex. : Laser Arena)" maxlength="50"><input id="sl2" type="date"><input id="sl3" type="time"></div><div class="row"><input id="sl4" placeholder="Infos : rendez-vous, prix, consignes" maxlength="120"><button class="p" onclick="addSor()">Planifier</button></div></div>':'')+'<div id="sl"></div><div class="card"><h2>🎲 Mission laser game</h2><div id="ms" class="big">Prêt pour la mission ?</div><div class="row" style="margin-top:8px"><button class="p" onclick="mission()">Tirer une mission</button></div></div><div class="card"><h2>🛡️ Règles et sécurité</h2><div class="mu">• Écoute le briefing de l’animateur.<br>• On marche, on ne court pas, aucun contact physique.<br>• Respecte les zones interdites et les autres joueurs.<br>• Vérifie l’autorisation de l’établissement et des parents avant de partir.</div></div>'};
+F.sor=function(){
+  var e=$("sl");if(!e)return;
+  e.innerHTML=D.sorties.length?D.sorties.slice().sort(function(a,b){return a.d<b.d?-1:1}).map(function(s){
+    var rs=D.rsvp.filter(function(r){return r.s===s.id}),me=rs.some(function(r){return r.u===UID}),n=days(s.d),tm=s.tm||[],mn=s.mn||[];
+    var pts=tm.map(function(t,i){return mn.filter(function(x){return x.t===i}).reduce(function(a,x){return a+x.p},0)}),best=pts.length?Math.max.apply(null,pts):0;
+    var tms=tm.length?'<div class="tms">'+tm.map(function(t,i){return'<div class="tm" style="border-color:'+TC[i]+'"><b style="color:'+TC[i]+'">'+TN[i]+' · '+pts[i]+' pts'+(pts[i]===best&&best>0?' 🏅':'')+'</b><div class="mu">'+esc(t.m.join(", "))+'</div></div>'}).join("")+'</div>':'';
+    var ctl=sa?'<div class="row"><select id="nt'+s.id+'"><option>2</option><option>3</option><option>4</option></select><button onclick="mkT(\''+s.id+'\')">Former les équipes</button><button class="x" onclick="rm(\'sorties\',\''+s.id+'\')">Supprimer</button></div>'+(tm.length?'<div class="row"><select id="mt'+s.id+'">'+tm.map(function(t,i){return'<option value="'+i+'">'+TN[i]+'</option>'}).join("")+'</select><input id="mp'+s.id+'" type="number" placeholder="Points de la manche"><button class="p" onclick="addM(\''+s.id+'\')">Ajouter la manche</button></div>':''):'';
+    return'<div class="card"><h2>🎯 Laser game · '+esc(s.lieu)+'</h2><div class="mu">'+esc(s.d)+(s.h?' à '+esc(s.h):'')+' · '+(n>=0?'J-'+n:'terminée')+'</div>'+(s.note?'<div>'+esc(s.note)+'</div>':'')+'<div class="row" style="margin-top:8px"><button class="'+(me?'on':'')+'" onclick="rsv(\''+s.id+'\')">'+(me?'✓ Inscrit(e)':'Je participe')+'</button><span class="mu" style="align-self:center">'+rs.length+' inscrit'+(rs.length>1?'s':'')+' : '+esc(rs.map(function(r){return r.by}).join(", "))+'</span></div>'+tms+ctl+'</div>'}).join(""):'<div class="card mu">Aucune sortie prévue pour l’instant.</div>'
+};
+function addSor(){var l=val("sl1"),d=val("sl2");if(!l||!d){toast("Lieu et date obligatoires");return}add("sorties",{lieu:l,d:d,h:val("sl3"),note:val("sl4")})}
+function rsv(sid){if(!P.n){toast("Choisis d’abord un pseudo en haut.");return}var id=sid+"_"+UID;if(D.rsvp.some(function(r){return r.id===id}))rm("rsvp",id);else set("rsvp",id,{s:sid})}
+function mkT(sid){var n=+$("nt"+sid).value,nm=shuf(D.rsvp.filter(function(r){return r.s===sid}).map(function(r){return r.by}));if(nm.length<n){toast("Pas assez d’inscrits pour "+n+" équipes");return}var t=[];for(var i=0;i<n;i++)t.push({m:[]});nm.forEach(function(x,i){t[i%n].m.push(x)});upd("sorties",sid,{tm:t,mn:[]})}
+function addM(sid){var t=+$("mt"+sid).value,p=parseInt($("mp"+sid).value,10);if(isNaN(p))return;var s=D.sorties.find(function(x){return x.id===sid});upd("sorties",sid,{mn:(s.mn||[]).concat([{t:t,p:p}])})}
+function mission(){$("ms").textContent=MS[Math.floor(Math.random()*MS.length)]}
+
+/* SUPER ADMIN */
+V.sa0=function(){return'<div class="card"><h2>👑 Centre de contrôle</h2><div id="sst"></div></div><div class="card"><h2>🚩 Signalements</h2><div id="srp"></div></div><div class="card"><h2>⛔ Utilisateurs bannis</h2><div id="sbn"></div></div><div class="card"><h2>🧹 Outils</h2><div class="row"><select id="spr">'+rooms().map(function(r){return'<option value="'+esc(r[0])+'">'+esc(r[1])+'</option>'}).join("")+'</select><button onclick="arm(\'pg\',purge)">Vider ce salon</button></div><div class="row"><button onclick="arm(\'rs\',resetLg)">Remettre le classement à zéro</button></div></div>'};
+F.sa0=function(){
+  var rp=D.msgs.filter(function(m){return m.rep}),us={};D.msgs.concat(D.scores,D.rsvp).forEach(function(x){us[x.u]=1});
+  $("sst").innerHTML=[["Membres actifs",Object.keys(us).length],["Messages",D.msgs.length],["Groupes",D.groups.length],["Sondages",D.polls.length],["Sorties",D.sorties.length],["Signalements",rp.length]].map(function(x){return'<div class="it"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>'}).join("");
+  $("srp").innerHTML=rp.length?rp.map(function(m,i){return'<div class="it"><span><b>'+esc(m.by)+'</b> : '+esc(m.tx)+'</span><span><button class="x" onclick="upd(\'msgs\',\''+m.id+'\',{rep:false})">Valider</button> <button class="x" onclick="rm(\'msgs\',\''+m.id+'\')">Supprimer</button> <button class="x" onclick="ban(\''+m.id+'\')">Bannir</button></span></div>'}).join(""):'<p class="mu">Aucun signalement.</p>';
+  $("sbn").innerHTML=D.bans.length?D.bans.map(function(b,i){return'<div class="it"><span>'+esc(b.nm)+'</span><button class="x" onclick="unban('+i+')">Débannir</button></div>'}).join(""):'<p class="mu">Personne n’est banni.</p>'
+};
+function ban(id){var m=D.msgs.find(function(x){return x.id===id});if(m&&m.u!==UID){set("bans",m.u,{nm:m.by});toast("Utilisateur banni")}}
+function unban(i){if(D.bans[i])rm("bans",D.bans[i].id)}
+function purge(){var r=$("spr").value;D.msgs.filter(function(m){return m.room===r}).forEach(function(m){rm("msgs",m.id)})}
+function resetLg(){D.scores.slice().forEach(function(s){rm("scores",s.id)})}
+
+/* ACCÈS, CODES ET CONTRÔLE TOTAL */
+function cfg(){return D.cfg.find(function(c){return c.id==="main"})||{}}
+function saveCfg(o){set("cfg","main",Object.assign({},cfg(),o))}
+function mine(){return D.members.find(function(m){return m.id===UID&&m.st!=="off"})}
+function gated(){return !!DB&&!sa&&!mine()}
+function isAdm(){if(sa||!DB)return true;var m=mine();return !!m&&m.role==="mod"}
+function gateView(){
+  $("tabs").innerHTML="";$("role").textContent="ACCÈS RÉSERVÉ";
+  var m=D.members.find(function(x){return x.id===UID});
+  $("v").innerHTML=m&&m.st==="off"?'<div class="card"><h2>⛔ Accès suspendu</h2><p>Ton accès a été suspendu par le super admin.</p></div>':'<div class="card"><h2>🔐 Accès réservé</h2><p class="mu">Entre le code d’invitation donné par le super admin.</p><div class="row"><input id="gp" placeholder="Ton pseudo" maxlength="20" value="'+esc(P.n)+'"><input id="gc" placeholder="Code (ex. : CC-7K2M9Q)" maxlength="12" onkeydown="if(event.key===\'Enter\')joinCode()"><button class="p" onclick="joinCode()">Entrer</button></div></div>'
+}
+function joinCode(){
+  var p=val("gp"),cd=val("gc").toUpperCase();if(!p){toast("Choisis un pseudo");return}
+  P.n=p;LS.set("cc-p",P);$("me").value=p;
+  var c=D.codes.find(function(x){return x.cd===cd&&x.on&&(!x.mx||(x.n||0)<x.mx)});
+  if(!c){toast("Code invalide, expiré ou révoqué");return}
+  set("members",UID,{nm:p,role:c.role,cd:cd,st:"on"});upd("codes",c.id,{n:(c.n||0)+1});toast("Bienvenue !")
+}
+V.sa=function(){return'<div class="card"><h2>⚡ Contrôle global</h2><div id="sg"></div></div><div class="card"><h2>🔑 Codes d’invitation</h2><div class="row"><select id="cr"><option value="member">Membre</option><option value="mod">Modérateur</option></select><input id="cx" type="number" min="0" placeholder="Utilisations max (0 = illimité)"><button class="p" onclick="genCode()">Générer un code</button></div><div id="scd"></div></div><div class="card"><h2>👥 Membres</h2><div id="smb"></div></div>'+V.sa0()};
+F.sa=function(){F.sa0();fillSa2()};
+function fillSa2(){
+  var c=cfg(),off=c.off||[],tg=TABS.filter(function(t){return["acc","set","sa"].indexOf(t[0])<0});
+  $("sg").innerHTML='<div class="row"><button class="'+(c.lock?"on":"")+'" onclick="saveCfg({lock:'+(!c.lock)+'})">'+(c.lock?"🔒 Chat verrouillé":"🔓 Chat ouvert")+'</button></div><div class="row"><input id="bnt" placeholder="Bannière d’alerte pour tous" maxlength="140" value="'+esc(c.bn||"")+'"><button class="p" onclick="saveCfg({bn:val(\'bnt\')})">Publier</button></div><div class="mu">Sections visibles pour les membres :</div><div class="row">'+tg.map(function(t){return'<button class="'+(off.indexOf(t[0])>=0?"":"on")+'" onclick="tgTab(\''+t[0]+'\')">'+t[1]+'</button>'}).join("")+'</div>';
+  $("scd").innerHTML=D.codes.length?D.codes.map(function(x,i){return'<div class="it"><span><b style="font-family:monospace;letter-spacing:.08em">'+esc(x.cd)+'</b> <span class="mu">· '+(x.role==="mod"?"modérateur":"membre")+' · '+(x.n||0)+'/'+(x.mx||"∞")+(x.on?"":" · révoqué")+'</span></span><span><button class="x" onclick="cdT('+i+')">'+(x.on?"Révoquer":"Réactiver")+'</button> <button class="x" onclick="cdD('+i+')">✕</button></span></div>'}).join(""):'<p class="mu">Aucun code.</p>';
+  $("smb").innerHTML=D.members.length?D.members.map(function(m,i){return'<div class="it"><span>'+esc(m.nm)+' <span class="mu">· '+(m.role==="mod"?"modérateur":"membre")+(m.st==="off"?" · suspendu":"")+'</span></span><span><button class="x" onclick="mbR('+i+')">'+(m.role==="mod"?"Rétrograder":"Promouvoir")+'</button> <button class="x" onclick="mbS('+i+')">'+(m.st==="off"?"Réactiver":"Suspendre")+'</button> <button class="x" onclick="mbD('+i+')">✕</button></span></div>'}).join(""):'<p class="mu">Aucun membre pour l’instant. Génère un code et donne-le à ta classe.</p>'
+}
+function genCode(){var ch="ABCDEFGHJKMNPQRSTUVWXYZ23456789",s="";for(var i=0;i<6;i++)s+=ch[Math.floor(Math.random()*ch.length)];add("codes",{cd:"CC-"+s,role:val("cr"),mx:parseInt(val("cx"),10)||0,on:true,n:0})}
+function tgTab(k){var o=(cfg().off||[]).slice(),i=o.indexOf(k);if(i>=0)o.splice(i,1);else o.push(k);saveCfg({off:o})}
+function cdT(i){var x=D.codes[i];if(x)upd("codes",x.id,{on:!x.on})}
+function cdD(i){var x=D.codes[i];if(x)rm("codes",x.id)}
+function mbR(i){var m=D.members[i];if(m)upd("members",m.id,{role:m.role==="mod"?"member":"mod"})}
+function mbS(i){var m=D.members[i];if(m)upd("members",m.id,{st:m.st==="off"?"on":"off"})}
+function mbD(i){var m=D.members[i];if(m)rm("members",m.id)}
+
+/* CONNEXION, SÉCURITÉ ET NOUVELLES FONCTIONS */
+var SAH="",gateTab="el",fails=0,lockT=0;
+function gated(){return !sa&&!(LS.get("cc-lg",0)===1&&(!DB||mine()))}
+function mine(){return D.members.find(function(m){return m.id===UID&&m.st!=="off"&&m.st!=="pend"})}
+function logout(){LS.set("cc-sa",0);LS.set("cc-lg",0);sa=false;R()}
+function logA(t){if(DB||sa)add("logs",{tx:t})}
+function gateView(){
+  var m=D.members.find(function(x){return x.id===UID}),isSA=gateTab==="sa",b;
+  $("tabs").innerHTML="";$("role").textContent="CONNEXION";
+  var ps='<input id="gp" placeholder="Ton pseudo" maxlength="20" value="'+esc(P.n)+'" style="width:100%;margin-bottom:8px">';
+  if(isSA)b=ps+'<input id="gs" type="password" placeholder="Code super admin" style="width:100%;margin-bottom:8px" onkeydown="if(event.key===\'Enter\')saLogin()"><button class="p" onclick="saLogin()" style="width:100%">Accéder au centre de contrôle</button>';
+  else if(m&&m.st==="off")b='<p>⛔ Ton accès a été suspendu par le super admin.</p>';
+  else if(m&&m.st==="pend")b='<p>⏳ Ta demande est en attente de validation par le super admin.</p>';
+  else b=ps+(DB&&!m?'<input id="gc" placeholder="Code d’invitation (ex. : CC-7K2M9Q)" maxlength="12" style="width:100%;margin-bottom:8px" onkeydown="if(event.key===\'Enter\')joinCode()">':'')+'<button class="p" onclick="joinCode()" style="width:100%">'+(m?"Se reconnecter":"Entrer")+'</button>'+(DB?'':'<p class="mu">Mode local : aucun code n’est nécessaire.</p>');
+  $("v").innerHTML='<div class="card" style="max-width:420px;margin:30px auto;text-align:center"><div class="big" style="font-size:1.5rem">◢ CLASSCONNECT</div><p class="mu">Connecte-toi pour accéder à ta classe</p><div class="row" style="justify-content:center"><button class="'+(isSA?"":"on")+'" onclick="gateTab=\'el\';R()">Élève</button><button class="'+(isSA?"on":"")+'" onclick="gateTab=\'sa\';R()">Super admin</button></div>'+b+'</div>'
+}
+function joinCode(){
+  var p=val("gp");if(!p){toast("Choisis un pseudo");return}
+  P.n=p;LS.set("cc-p",P);$("me").value=p;
+  if(!DB||mine()){LS.set("cc-lg",1);R();return}
+  var cd=val("gc").toUpperCase(),c=D.codes.find(function(x){return x.cd===cd&&x.on&&(!x.mx||(x.n||0)<x.mx)});
+  if(!c){toast("Code invalide, expiré ou révoqué");return}
+  var pend=!!cfg().appr&&c.role!=="mod";
+  set("members",UID,{nm:p,role:c.role,cd:cd,st:pend?"pend":"on"});upd("codes",c.id,{n:(c.n||0)+1});LS.set("cc-lg",1);logA("Nouvel élève : "+p);toast(pend?"Demande envoyée":"Bienvenue !")
+}
+async function saLogin(){
+  if(Date.now()<lockT){toast("Trop d’essais, réessaie dans quelques secondes");return}
+  var p=val("gs").toLowerCase().replace(/\s+/g," ");
+  try{var h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(p)),x=Array.from(new Uint8Array(h)).map(function(c){return c.toString(16).padStart(2,"0")}).join("")}catch(e){toast("Vérification impossible sur cet appareil");return}
+  if(x===SAH){fails=0;var n=val("gp");if(n){P.n=n;LS.set("cc-p",P);$("me").value=n}sa=true;LS.set("cc-sa",1);LS.set("cc-lg",1);logA("Connexion super admin");toast("Bienvenue, super admin");R()}
+  else{fails++;if(fails>=5){lockT=Date.now()+30000;fails=0}toast("Code incorrect")}
+}
+
+/* IDEES (boîte anonyme) */
+V.ide=function(){return'<div class="card"><h2>💡 Boîte à idées</h2><div class="row"><input id="it" placeholder="Ton idée (sortie, jeu, amélioration…)" maxlength="160"></div><div class="row"><label class="mu"><input id="ia" type="checkbox" checked style="width:auto"> Anonyme pour les élèves</label><button class="p" onclick="addIde()">Proposer</button></div></div><div id="il"></div>'};
+F.ide=function(){
+  var a=D.ideas.slice().sort(function(x,y){return(y.v||[]).length-(x.v||[]).length});
+  $("il").innerHTML=a.length?a.map(function(i){var n=(i.v||[]).length,me=(i.v||[]).indexOf(UID)>=0;return'<div class="card"><div>'+esc(i.tx)+(i.st==="ok"?' <b style="color:var(--ok)">✓ Retenue</b>':'')+'</div><div class="mu">'+(i.an?(sa?"Anonyme ("+esc(i.by)+")":"Anonyme"):esc(i.by))+'</div><div class="row" style="margin:8px 0 0"><button class="'+(me?"on":"")+'" onclick="voteIde(\''+i.id+'\')">👍 '+n+'</button>'+(sa?'<button class="x" onclick="upd(\'ideas\',\''+i.id+'\',{st:\''+(i.st==="ok"?"":"ok")+'\'})">Retenir</button>':'')+(can(i)?'<button class="x" onclick="rm(\'ideas\',\''+i.id+'\')">✕</button>':'')+'</div></div>'}).join(""):'<div class="card mu">Aucune idée pour l’instant.</div>'
+};
+function addIde(){var t=val("it");if(t){add("ideas",{tx:t,an:$("ia").checked,v:[]});$("it").value=""}}
+function voteIde(id){var i=D.ideas.find(function(x){return x.id===id}),v=(i&&i.v||[]).slice(),k=v.indexOf(UID);if(!i)return;if(k>=0)v.splice(k,1);else v.push(UID);upd("ideas",id,{v:v})}
+
+/* ECHANGE SCOLAIRE */
+V.mkt=function(){return'<div class="card"><h2>🔄 Échange scolaire</h2><div class="row"><select id="mk"><option>Je donne</option><option>Je prête</option><option>Je cherche</option></select><input id="mx" placeholder="Ex. : manuel de maths 4e, calculatrice…" maxlength="120"><button class="p" onclick="addMkt()">Publier</button></div><p class="mu">Rencontrez-vous toujours à l’école, jamais en privé.</p></div><div id="ml2"></div>'};
+F.mkt=function(){
+  $("ml2").innerHTML=D.mkt.length?D.mkt.slice().reverse().map(function(m){return'<div class="card"><div class="'+(m.st==="done"?"done":"")+'"><b>'+esc(m.k)+'</b> · '+esc(m.tx)+'</div><div class="mu">'+esc(m.by)+'</div>'+(can(m)?'<div class="row" style="margin:8px 0 0"><button class="x" onclick="upd(\'mkt\',\''+m.id+'\',{st:\''+(m.st==="done"?"":"done")+'\'})">'+(m.st==="done"?"Rouvrir":"✓ Réglé")+'</button><button class="x" onclick="rm(\'mkt\',\''+m.id+'\')">✕</button></div>':'')+'</div>'}).join(""):'<div class="card mu">Aucune annonce.</div>'
+};
+function addMkt(){var t=val("mx");if(t){add("mkt",{k:val("mk"),tx:t});$("mx").value=""}}
+
+/* ANNUAIRE */
+V.dir=function(){return'<div class="card"><h2>📇 Annuaire de la classe</h2><div id="dl"></div></div>'};
+F.dir=function(){
+  var t=tot(),m=D.members.filter(function(x){return x.st!=="off"&&x.st!=="pend"});
+  $("dl").innerHTML=m.length?m.map(function(x){var p=t[x.id]?t[x.id].p:0;return'<div class="it"><span><b>'+esc(x.nm)+'</b> <span class="mu">'+(x.role==="mod"?"· modérateur":"")+'</span><br><span class="mu">'+badges(p)+'</span></span><b>'+p+' pts</b></div>'}).join(""):'<p class="mu">'+(DB?"Aucun membre pour l’instant.":"L’annuaire est disponible en mode partagé.")+'</p>'
+};
+
+/* SUPER ADMIN : validation, journal */
+var vsa=V.sa,fsa=F.sa;
+V.sa=function(){return vsa()+'<div class="card"><h2>📜 Journal d’activité</h2><div id="slg"></div></div>'};
+F.sa=function(){
+  fsa();var c=cfg();
+  $("sg").insertAdjacentHTML("beforeend",'<div class="row"><button class="'+(c.appr?"on":"")+'" onclick="saveCfg({appr:'+(!c.appr)+'})">✋ Validation manuelle : '+(c.appr?"activée":"désactivée")+'</button></div>');
+  var pd=D.members.map(function(m,i){return[m,i]}).filter(function(x){return x[0].st==="pend"});
+  if(pd.length)$("smb").insertAdjacentHTML("afterbegin",'<div class="mu">⏳ En attente de validation</div>'+pd.map(function(x){return'<div class="it"><span>'+esc(x[0].nm)+'</span><span><button class="x p" onclick="upd(\'members\',D.members['+x[1]+'].id,{st:\'on\'})">Approuver</button> <button class="x" onclick="mbD('+x[1]+')">Refuser</button></span></div>'}).join(""));
+  var lg=D.logs.slice().sort(function(a,b){return b.t-a.t}).slice(0,30);
+  $("slg").innerHTML=lg.length?lg.map(function(l){return'<div class="it"><span>'+esc(l.tx)+'<br><span class="mu">'+esc(l.by)+' · '+new Date(l.t).toLocaleString("fr-FR")+'</span></span></div>'}).join(""):'<p class="mu">Aucune activité enregistrée.</p>'
+};
+var LBL={genCode:"Code généré",ban:"Utilisateur banni",purge:"Salon vidé",resetLg:"Classement remis à zéro",mbS:"Accès membre modifié",mbD:"Membre retiré",mbR:"Rôle modifié",cdT:"Code révoqué ou réactivé",cdD:"Code supprimé",tgTab:"Section affichée ou masquée"};
+Object.keys(LBL).forEach(function(n){var f=window[n];window[n]=function(){var r=f.apply(null,arguments);logA(LBL[n]);return r}});
+
+V.set=function(){
+  var em=["🙂","😎","🤓","🦊","🐼","🚀","⚽","🎨","🎵","🌟"];
+  return'<div class="card"><h2>👤 Mon profil</h2><div class="row"><input id="sp" value="'+esc(P.n)+'" placeholder="Pseudo" maxlength="20"><select id="se">'+em.map(function(e){return'<option'+(e===P.e?" selected":"")+'>'+e+'</option>'}).join("")+'</select><input id="sc" type="color" value="'+esc(P.c)+'" style="flex:none;width:56px;padding:2px"><button class="p" onclick="saveP()">Enregistrer</button></div><p class="mu">Utilise un pseudo, pas ton vrai nom. '+(admin?'Tu as les droits d’administration (modérer, épingler, supprimer).':'')+'</p></div><div class="card"><h2>🔒 Règles de la classe</h2><p class="mu">Reste respectueux, ne partage aucune info privée (adresse, téléphone, photos de camarades sans accord) et signale 🚩 tout message gênant.</p></div>'
+};
+function saveP(){P.n=val("sp");P.e=$("se").value;P.c=$("sc").value;LS.set("cc-p",P);$("me").value=P.n;toast("Profil enregistré")}
+$("me").value=P.n;
+$("me").onchange=function(){P.n=this.value.trim();LS.set("cc-p",P)};
+
+/* démarrage */
+(async function(){
+  var n;
+  try{if(window.claude&&claude.use){DB=await claude.use("db");if(DB){admin=false;var u=await claude.use("user");if(u){var id=await u.id();if(id)UID=id;admin=await u.canEdit()}}}}catch(e){DB=null}
+  shared=!!DB;
+  if(DB){Object.keys(D).forEach(sub)}else{admin=true;Object.keys(D).forEach(function(k){D[k]=LS.get("cc-d-"+k,[])})}
+  R()
+})();
+R();
+</script>
+<script src="/patch.js"></script>
+</body>
+</html>
