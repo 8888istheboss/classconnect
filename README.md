@@ -22,9 +22,11 @@ de basculer vers un mode local.
 4. Redéploie le projet pour appliquer les variables. Les tables PostgreSQL sont créées
    automatiquement au premier appel de l'API.
 
-Les élèves peuvent créer un compte avec un pseudo et un mot de passe d'au moins 8 caractères.
-Le compte reste en attente jusqu'à son activation par le super admin dans l'onglet **Super admin**.
-Les mots de passe sont hachés côté serveur et ne sont jamais enregistrés en clair.
+Le professeur génère un code dans **Super admin → Codes d’invitation** et le transmet aux élèves.
+L’inscription demande ce code, un pseudo et un mot de passe d’au moins 8 caractères ; un code
+valide active le compte immédiatement. Les anciennes demandes en attente peuvent saisir un code
+après s’être connectées. Les mots de passe sont hachés côté serveur et ne sont jamais enregistrés
+en clair.
 
 ## Jeux et défis
 
@@ -40,7 +42,7 @@ vérifie la valeur de `DATABASE_URL` dans les paramètres Vercel et redéploie.
 
 ## 3. Premier usage
 1. Ouvre le site → onglet **Super admin** → entre ton pseudo et `SUPERADMIN_CODE`.
-2. Onglet Super admin → génère des **codes d'invitation** et donne-les à ta classe.
-3. Les élèves entrent pseudo + code → leur demande arrive dans **Super admin → Membres** (ou l'onglet Demandes) → tu acceptes.
+2. Onglet Super admin → génère un **code d’invitation** et le partage avec la classe.
+3. Les élèves créent leur compte avec pseudo, mot de passe et code ; l’accès est activé dès validation du code.
 
 Les modifications poussées sur la branche `main` sont déployées par l'intégration GitHub/Vercel.

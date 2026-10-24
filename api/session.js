@@ -8,6 +8,18 @@ const accountName = (s) => clean(s, 20).toLowerCase();
 const passwordHash = (password, salt) => scrypt(password, salt, 64);
 const authIp = (req) => (req.headers["x-forwarded-for"] || "?").split(",")[0].trim().slice(0, 100);
 
+async function consumeInvite(tx, value) {
+  const code = clean(value, 20).toUpperCase();
+  if (!code) return { error: "Saisis le code d’invitation fourni par le professeur." };
+  const row = (await tx`select id,data from docs where col='codes' and data->>'cd'=${code} for update`)[0];
+  const invite = row && row.data;
+  if (!invite || !invite.on || (invite.mx && (invite.n || 0) >= invite.mx)) {
+    return { error: "Code d’invitation invalide, révoqué ou déjà utilisé." };
+  }
+  await tx`update docs set data=jsonb_set(data,'{n}',to_jsonb(coalesce((data->>'n')::int,0)+1)),upd=${Date.now()} where col='codes' and id=${row.id}`;
+  return { role: invite.role === "mod" ? "mod" : "member", code };
+}
+
 export default async function handler(req, res) {
   try {
     const me = await who(req, res);
@@ -49,22 +61,26 @@ export default async function handler(req, res) {
 
       if (b.action === "register") {
         if (me.sa || me.role !== "none" || me.st) return res.status(409).json({ error: "Déconnecte-toi avant de créer un autre compte." });
+        if (!clean(b.code, 20)) return res.status(400).json({ error: "Saisis le code d’invitation fourni par le professeur." });
         const uid = "u" + crypto.randomBytes(12).toString("hex");
         const salt = crypto.randomBytes(16).toString("base64url");
         const hash = await passwordHash(password, salt);
         try {
           await sql.begin(async (tx) => {
+            const invite = await consumeInvite(tx, b.code);
+            if (invite.error) throw Object.assign(new Error(invite.error), { code: "INVITE_INVALID" });
             await tx`insert into accounts(username,uid,salt,password_hash,created_at) values(${username},${uid},${salt},${hash.toString("hex")},${now})`;
-            await tx`insert into docs(col,id,data,uid,t,upd) values('members',${uid},${JSON.stringify({ nm: clean(b.name, 20), role: "member", st: "pend" })}::jsonb,${uid},${now},${now})`;
+            await tx`insert into docs(col,id,data,uid,t,upd) values('members',${uid},${JSON.stringify({ nm: clean(b.name, 20), role: invite.role, st: "on", cd: invite.code })}::jsonb,${uid},${now},${now})`;
           });
         } catch (e) {
+          if (e.code === "INVITE_INVALID") return res.status(400).json({ error: e.message });
           if (e.code === "23505") return res.status(409).json({ error: "Ce pseudo est déjà utilisé. Choisis-en un autre." });
           throw e;
         }
         await sql`delete from account_attempts where ip=${ip}`;
         setCookie(res, { uid, sa: false, exp: now + 30 * 864e5 });
-        await log("Nouvelle inscription : " + clean(b.name, 20));
-        return res.status(201).json({ ok: true, st: "pend" });
+        await log("Compte activé par code d’invitation : " + clean(b.name, 20));
+        return res.status(201).json({ ok: true, st: "on" });
       }
 
       const account = (await sql`select uid,salt,password_hash from accounts where username=${username}`)[0];
@@ -78,6 +94,25 @@ export default async function handler(req, res) {
       setCookie(res, { uid: account.uid, sa: false, exp: now + 30 * 864e5 });
       const member = (await sql`select data from docs where col='members' and id=${account.uid}`)[0];
       return res.json({ ok: true, st: member ? member.data.st : "off" });
+    }
+
+    if (b.action === "activate") {
+      if (me.sa || !me.uid || me.st !== "pend") {
+        return res.status(409).json({ error: "Aucun compte en attente à activer." });
+      }
+      const result = await sql.begin(async (tx) => {
+        const account = (await tx`select uid from accounts where uid=${me.uid}`)[0];
+        if (!account) return { error: "Connecte-toi avec le compte élève concerné." };
+        const current = (await tx`select data from docs where col='members' and id=${me.uid} for update`)[0];
+        if (!current || current.data.st !== "pend") return { error: "Ce compte n’est plus en attente d’activation." };
+        const invite = await consumeInvite(tx, b.code);
+        if (invite.error) return invite;
+        await tx`update docs set data=data||${JSON.stringify({ st: "on", role: invite.role, cd: invite.code })}::jsonb,upd=${now} where col='members' and id=${me.uid} and data->>'st'='pend'`;
+        return { ok: true, st: "on" };
+      });
+      if (result.error) return res.status(400).json({ error: result.error });
+      await log("Compte activé par code d’invitation : " + me.name);
+      return res.json(result);
     }
 
     if (b.action === "login-sa") {
@@ -102,17 +137,15 @@ export default async function handler(req, res) {
       if (me.st) return res.json({ ok: true, st: me.st });
       const name = clean(b.name, 20), code = clean(b.code, 20).toUpperCase();
       if (!name) return res.status(400).json({ error: "Pseudo requis" });
-      const c = (await sql`select id,data from docs where col='codes' and data->>'cd'=${code}`)[0];
-      const d = c && c.data;
-      if (!d || !d.on || (d.mx && (d.n || 0) >= d.mx)) return res.status(400).json({ error: "Code invalide, expiré ou révoqué" });
-      const cfg = (await sql`select data from docs where col='cfg' and id='main'`)[0];
-      const role = d.role === "mod" ? "mod" : "member";
-      // Validation par l'admin : obligatoire (sauf si le super admin la désactive, et jamais pour un modérateur)
-      const st = cfg && cfg.data.appr === false && role !== "mod" ? "on" : "pend";
-      await sql`insert into docs(col,id,data,uid,t,upd) values('members',${me.uid},${JSON.stringify({ nm: name, role, cd: code, st })}::jsonb,${me.uid},${now},${now})`;
-      await sql`update docs set data=jsonb_set(data,'{n}',to_jsonb(coalesce((data->>'n')::int,0)+1)), upd=${now} where col='codes' and id=${c.id}`;
-      await log("Nouvelle demande : " + name);
-      return res.json({ ok: true, st });
+      const joined = await sql.begin(async (tx) => {
+        const invite = await consumeInvite(tx, code);
+        if (invite.error) return invite;
+        await tx`insert into docs(col,id,data,uid,t,upd) values('members',${me.uid},${JSON.stringify({ nm: name, role: invite.role, cd: invite.code, st: "on" })}::jsonb,${me.uid},${now},${now})`;
+        return { ok: true, st: "on" };
+      });
+      if (joined.error) return res.status(400).json({ error: joined.error });
+      await log("Nouvel accès par code d’invitation : " + name);
+      return res.json(joined);
     }
     return res.status(400).json({ error: "Action inconnue" });
   } catch (e) {

@@ -6,10 +6,21 @@ window.accountSubmit = async function () {
   if (authMode === "register" && password.length < 8) { toast("Le mot de passe doit contenir au moins 8 caractères"); return; }
   try {
     var action = authMode === "register" ? "register" : "login";
-    var r = await CCAPI("/api/session", { method: "POST", body: JSON.stringify({ action: action, name: p, password: password }) });
+    var code = $("gpCode") ? $("gpCode").value.trim() : "";
+    if (action === "register" && !code) { toast("Saisis le code d’invitation fourni par le professeur"); return; }
+    var r = await CCAPI("/api/session", { method: "POST", body: JSON.stringify({ action: action, name: p, password: password, code: code }) });
     P.n = p;
-    toast(r.st === "pend" ? (action === "register" ? "Compte créé. En attente d’activation par le super admin." : "Ton compte attend l’activation du super admin.") : r.st === "off" ? "Ce compte est désactivé." : "Bienvenue !");
+    toast(r.st === "pend" ? "Connecté. Saisis un code d’invitation pour activer ton ancien compte." : r.st === "off" ? "Ce compte est désactivé." : "Compte actif. Bienvenue !");
     setTimeout(function () { location.reload(); }, 800);
+  } catch (e) { toast(e.message); }
+};
+window.activateAccount = async function () {
+  var code = $("gpCode") ? $("gpCode").value.trim() : "";
+  if (!code) { toast("Saisis le code d’invitation fourni par le professeur"); return; }
+  try {
+    await CCAPI("/api/session", { method: "POST", body: JSON.stringify({ action: "activate", code: code }) });
+    toast("Compte activé. Bienvenue !");
+    setTimeout(function () { location.reload(); }, 500);
   } catch (e) { toast(e.message); }
 };
 window.saLogin = async function () {
