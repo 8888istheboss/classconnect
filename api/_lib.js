@@ -13,6 +13,7 @@ export const init = () => (ready ||= (async () => {
   await sql`create table if not exists attempts(ip text primary key, n int not null default 0, until bigint not null default 0)`;
   await sql`create table if not exists accounts(username text primary key, uid text unique not null, salt text not null, password_hash text not null, created_at bigint not null)`;
   await sql`create table if not exists account_attempts(ip text primary key, n int not null default 0, until bigint not null default 0)`;
+  await sql`create table if not exists games(id text primary key, data jsonb not null, created_at bigint not null, upd bigint not null)`;
   const now = Date.now();
   await sql`insert into docs(col,id,data,uid,t,upd) values('cfg','main','{"appr":true}'::jsonb,'sa',${now},${now}) on conflict do nothing`;
 })());

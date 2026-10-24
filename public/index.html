@@ -65,6 +65,24 @@ button:hover{border-color:var(--ac)}
 .p,.on{background:linear-gradient(135deg,var(--ac),var(--ac2))!important;color:var(--on)!important;border-color:transparent!important;box-shadow:0 0 14px var(--glow)}
 .tms{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0}
 .tm{border:1px solid var(--bd);border-left-width:4px;border-radius:10px;padding:8px}
+main{max-width:1040px;padding:24px}
+body::before{display:none}
+body{background:var(--bg);background-attachment:initial}
+h1,h2,.big,.bar button{font-family:inherit}
+h1{font-size:1.35rem;letter-spacing:-.035em;background:none;color:var(--tx)}
+h1 small{-webkit-text-fill-color:var(--mu);letter-spacing:.04em;font-size:.7rem}
+h2{font-size:1rem;text-transform:none;letter-spacing:0;color:var(--tx)}
+.card{backdrop-filter:none;border:1px solid var(--bd);border-top:1px solid var(--bd);box-shadow:0 3px 14px #24385b0c;border-radius:16px;padding:18px}
+.bar{position:sticky;top:0;z-index:5;padding:8px 0;background:var(--bg);border-bottom:1px solid var(--bd);overflow-x:auto;flex-wrap:nowrap}
+.bar button{white-space:nowrap;font-size:.82rem;text-transform:none;letter-spacing:0;border-radius:999px;padding:8px 13px}
+button,input,select,textarea{border-radius:11px}
+button{transition:background .15s,border-color .15s,transform .15s}
+button:hover{transform:translateY(-1px)}
+header{padding:8px 0 14px}
+.game-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.game-stat{background:var(--bg);border-radius:12px;padding:10px}
+.game-option{width:100%;text-align:left;padding:12px 14px}
+@media(max-width:600px){main{padding:12px}.card{padding:14px}header{gap:6px}#me{width:105px!important}.game-stats{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -92,8 +110,8 @@ var UID="",DB=null,admin=false,sa=false,shared=false,booting=true,cloudError="";
 window.addEventListener("cc-cloud-error",function(e){cloudError=e.detail&&e.detail.message||"Erreur de synchronisation avec le cloud.";R()});
 var D={msgs:[],groups:[],gm:[],polls:[],votes:[],scores:[],ann:[],hw:[],sorties:[],rsvp:[],bans:[],members:[],codes:[],cfg:[],ideas:[],mkt:[],logs:[],cards:[],prefs:[]};
 var SEEN={},DONE={},CARDS=[];
-var tab="acc",room="gen",rp=null,ci=0,fl=false,Z=null;
-var TABS=[["acc","🏠 Accueil"],["chat","💬 Chat"],["grp","👥 Groupes"],["plan","📅 Planning"],["rev","📚 Révisions"],["lg","🏆 League"],["pol","🗳️ Sondages"],["sor","🎯 Sorties"],["ide","💡 Idées"],["mkt","🔄 Échange"],["dir","📇 Annuaire"],["sa","👑 Super admin"],["set","⚙️ Réglages"]];
+var tab="acc",room="gen",rp=null,ci=0,fl=false,Z=null,gameCurrent="",gameTimer=null,gameBusy=false;
+var TABS=[["acc","🏠 Accueil"],["chat","💬 Chat"],["grp","👥 Groupes"],["game","🎮 Défis"],["plan","📅 Planning"],["rev","📚 Révisions"],["lg","🏆 League"],["pol","🗳️ Sondages"],["sor","🎯 Sorties"],["ide","💡 Idées"],["mkt","🔄 Échange"],["dir","📇 Annuaire"],["sa","👑 Super admin"],["set","⚙️ Réglages"]];
 var BASE=[["gen","# Général"],["dev","# Devoirs"],["jeu","# Jeux"],["pro","# Projets"],["mat","Maths"],["fra","Français"],["his","Histoire"],["sci","Sciences"]];
 
 /* Toutes les données persistantes sont stockées dans la base cloud. */
@@ -111,12 +129,12 @@ function name(){return P.n||"Anonyme"}
 /* navigation */
 var V={},F={};
 function R(){if(booting||cloudError){$("bn").innerHTML="";$("tabs").innerHTML="";$("role").textContent="CLOUD";$("v").innerHTML='<div class="card"><h2>'+(booting?"Connexion au cloud…":"Cloud indisponible")+'</h2><p class="mu">'+esc(cloudError||"Chargement des données sécurisées…")+'</p>'+(cloudError?'<button class="p" onclick="location.reload()">Réessayer</button>':"")+'</div>';$("st").textContent="Les données de la classe sont stockées sur le cloud.";return}admin=isAdm();if(tab==="sa"&&!sa)tab="acc";if(tab!=="acc"&&tab!=="set"&&!sa&&(cfg().off||[]).indexOf(tab)>=0)tab="acc";$("bn").innerHTML=cfg().bn?'<div class="card" style="border-top-color:var(--ko)">📢 '+esc(cfg().bn)+'</div>':"";if(gated()){gateView();return}$("role").textContent=sa?"👑 SUPER ADMIN":admin?"MODÉRATEUR":"MEMBRE";$("tabs").innerHTML=TABS.filter(function(t){return t[0]==="sa"?sa:(sa||(cfg().off||[]).indexOf(t[0])<0)}).map(function(t){return'<button class="'+(t[0]===tab?"on":"")+'" onclick="go(\''+t[0]+'\')">'+t[1]+'</button>'}).join("");$("v").innerHTML=V[tab]();if(F[tab])F[tab]();$("st").textContent="Mode cloud : les données sont enregistrées sur le serveur et partagées avec la classe."}
-function go(t){tab=t;R()}
+function go(t){tab=t;if(t!=="game"&&gameTimer){clearInterval(gameTimer);gameTimer=null}R()}
 function L(){admin=isAdm();var g=gated(),k=JSON.stringify(cfg().off||[])+(cfg().bn||"")+(mine()?mine().role:"");if(g!==L.g||k!==L.k){L.g=g;L.k=k;R();return}if(!g&&F[tab])F[tab]()}
 function rooms(){var r=BASE.slice();D.groups.forEach(function(g){if(D.gm.some(function(m){return m.g===g.id&&m.u===UID}))r.push(["g:"+g.id,"👥 "+g.nm])});return r}
 
 /* ACCUEIL */
-V.acc=function(){return'<div class="card"><h2>🔔 Nouveautés</h2><div id="nv"></div></div><div class="card"><h2>📢 Annonces</h2>'+(admin?'<div class="row"><input id="an" placeholder="Nouvelle annonce" maxlength="200"><button class="p" onclick="addAnn()">Publier</button></div>':'')+'<div id="al"></div></div>'};
+V.acc=function(){return'<div class="card"><div class="mu">ESPACE DE CLASSE</div><h2 style="font-size:1.45rem;margin-top:5px">Bienvenue, '+esc(P.n||"dans ta classe")+' 👋</h2><p class="mu">Retrouve tes activités, échange avec la classe et lance un défi quand tu veux.</p><div class="game-stats"><div class="game-stat"><span class="mu">Membres actifs</span><br><b>'+D.members.filter(function(m){return m.st==="on"}).length+'</b></div><div class="game-stat"><span class="mu">Messages</span><br><b>'+D.msgs.length+'</b></div><div class="game-stat"><span class="mu">Défis</span><br><button class="x" onclick="go(\'game\')">Jouer maintenant →</button></div></div></div><div class="card"><h2>🔔 Nouveautés</h2><div id="nv"></div></div><div class="card"><h2>📢 Annonces</h2>'+(admin?'<div class="row"><input id="an" placeholder="Nouvelle annonce" maxlength="200"><button class="p" onclick="addAnn()">Publier</button></div>':'')+'<div id="al"></div></div>'};
 F.acc=function(){
   var un=D.msgs.filter(function(m){return m.u!==UID&&m.t>(SEEN[m.room]||0)}).length;
   var np=D.polls.filter(function(p){return !D.votes.some(function(v){return v.p===p.id&&v.u===UID})}).length;
@@ -193,6 +211,60 @@ function Qz(){
 function qs(){Z={q:shuf(QP).slice(0,6),i:0,s:0,a:false};Qz()}
 function qa(b){if(Z.a)return;Z.a=true;var q=Z.q[Z.i];document.querySelectorAll("#qz .opts button").forEach(function(x){if(x.dataset.v===q[1])x.classList.add("good")});if(b.dataset.v===q[1])Z.s++;else b.classList.add("bad");$("nx").style.display="inline-block"}
 function qn(){Z.i++;Z.a=false;if(Z.i>=Z.q.length){Z.end=true;if(Z.s>0)add("scores",{pts:Z.s*10})}Qz()}
+
+/* DÉFIS MULTIJOUEURS */
+V.game=function(){
+  return'<div class="card"><h2>🎮 Défis de la classe</h2><p class="mu">Affronte un membre en duel ou lance un défi quotidien. Les réponses et les scores sont vérifiés par le serveur.</p><div class="row"><button class="p" onclick="createGame(\'duel\')">⚡ Créer un duel</button><select id="gameDays"><option value="1">1 jour</option><option value="3">3 jours</option><option value="5">5 jours</option><option value="7">7 jours</option></select><button onclick="createGame(\'daily\')">📅 Défi quotidien</button></div></div><div id="gameDetail"></div><div class="card"><h2>Défis disponibles et mes parties</h2><div id="gameList"><span class="mu">Chargement…</span></div></div>'
+};
+async function loadGameList(){
+  if(tab!=="game"||gameBusy)return;
+  gameBusy=true;
+  try{
+    var result=await CCAPI("/api/game?op=list"),e=$("gameList");
+    if(!e)return;
+    if(!result.games.length)e.innerHTML='<p class="mu">Aucun défi pour le moment. Crée le premier !</p>';
+    else e.innerHTML=result.games.map(function(g){
+      var names=g.players.map(function(p){return esc(p.name)+" · "+p.score+" pts"}).join(" / ");
+      var label=g.type==="duel"?"Duel":"Défi · "+g.days+" jour"+(g.days>1?"s":"");
+      var status=g.status==="waiting"?"En attente d’un adversaire":g.status==="complete"?"Terminé"+(g.winnerName?" · gagnant : "+esc(g.winnerName):""):"En cours";
+      return'<div class="it"><span><b>'+label+'</b><br><span class="mu">'+status+' · '+names+'</span></span><span>'+(g.canJoin?'<button class="p x" onclick="joinGame(\''+g.id+'\')">Rejoindre</button>':'<button class="x" onclick="openGame(\''+g.id+'\')">'+(g.status==="complete"?"Résultat":"Ouvrir")+'</button>')+'</span></div>'
+    }).join("");
+  }catch(e){var el=$("gameList");if(el)el.innerHTML='<p class="mu">Impossible de charger les défis : '+esc(e.message)+'</p>'}
+  finally{gameBusy=false}
+}
+async function refreshGame(){
+  if(!gameCurrent||tab!=="game")return;
+  try{var r=await CCAPI("/api/game?id="+encodeURIComponent(gameCurrent));drawGame(r.state)}
+  catch(e){var el=$("gameDetail");if(el)el.innerHTML='<div class="card mu">'+esc(e.message)+'</div>'}
+}
+function drawGame(s){
+  var e=$("gameDetail");if(!e)return;
+  var me=s.players[s.myIndex],opp=s.players[1-s.myIndex],isDaily=s.type==="daily";
+  var winner=s.status==="complete"?(s.winner==="draw"?"Match nul":s.winner===UID?"🎉 Tu as gagné !":s.winnerName?"Victoire de "+esc(s.winnerName):"Défi terminé"):"";
+  var question=s.question?'<div class="card"><div class="mu">Question '+(s.questionIndex+1)+(isDaily?" · jour "+(s.questionIndex+1):" / 6")+'</div><h2 style="margin-top:8px">'+esc(s.question.prompt)+'</h2><div class="opts">'+s.question.options.map(function(o,i){return'<button class="game-option" onclick="answerGame('+i+')">'+esc(o)+'</button>'}).join("")+'</div></div>':"";
+  var progress=s.status==="waiting"?"En attente d’un autre membre…":s.status==="complete"?'<div class="big">'+winner+'</div>':s.myProgress>=(isDaily?s.days:6)?"Tu as terminé ! En attente de ton adversaire.":s.answered?(isDaily?"Réponse du jour enregistrée. Reviens demain !":"Réponse enregistrée. En attente de la prochaine question."):"";
+  e.innerHTML='<div class="card"><div class="row" style="justify-content:space-between"><div><h2>'+(isDaily?"📅 Défi quotidien":"⚡ Duel quiz")+'</h2><span class="mu">'+(s.status==="waiting"?"À rejoindre":s.status==="complete"?"Terminé":"En cours")+(isDaily&&s.endsAt?" · se termine le "+fmtDate(s.endsAt,{dateStyle:"short"}):"")+'</span></div><button class="x" onclick="closeGame()">Fermer</button></div><div class="game-stats"><div class="game-stat"><span class="mu">Toi</span><br><b>'+esc(me.name)+'</b><br>'+me.score+' pts · '+s.myProgress+' réponse'+(s.myProgress>1?"s":"")+'</div><div class="game-stat"><span class="mu">Adversaire</span><br><b>'+esc(opp?opp.name:"À venir")+'</b><br>'+(opp?opp.score+" pts · "+opp.progress+" réponse"+(opp.progress>1?"s":""):"En attente")+'</div><div class="game-stat"><span class="mu">Format</span><br><b>'+(isDaily?s.days+" jour"+(s.days>1?"s":""):"6 questions")+'</b><br>10 points par bonne réponse</div></div><p class="mu">'+progress+'</p></div>'+question;
+}
+async function createGame(type){
+  try{var r=await CCAPI("/api/game",{method:"POST",body:JSON.stringify({action:"create",type:type,days:+$("gameDays").value})});gameCurrent=r.game.id;await loadGameList();await refreshGame();toast("Défi créé !")}
+  catch(e){toast(e.message)}
+}
+async function joinGame(id){
+  try{await CCAPI("/api/game",{method:"POST",body:JSON.stringify({action:"join",id:id})});gameCurrent=id;await loadGameList();await refreshGame();toast("Tu as rejoint le défi !")}
+  catch(e){toast(e.message)}
+}
+function openGame(id){gameCurrent=id;refreshGame()}
+function closeGame(){gameCurrent="";var e=$("gameDetail");if(e)e.innerHTML=""}
+async function answerGame(choice){
+  if(!gameCurrent)return;
+  document.querySelectorAll("#gameDetail .game-option").forEach(function(b){b.disabled=true});
+  try{var r=await CCAPI("/api/game",{method:"POST",body:JSON.stringify({action:"answer",id:gameCurrent,choice:choice})});toast(r.correct?"Bonne réponse · +10 points":"Réponse enregistrée");await refreshGame();await loadGameList()}
+  catch(e){toast(e.message);await refreshGame()}
+}
+F.game=function(){
+  loadGameList();refreshGame();
+  if(!gameTimer)gameTimer=setInterval(function(){if(tab!=="game"){clearInterval(gameTimer);gameTimer=null;return}if(!document.hidden){loadGameList();refreshGame()}},2000)
+};
 
 /* SONDAGES */
 V.pol=function(){return'<div class="card"><h2>➕ Nouveau sondage</h2><div class="row"><input id="pq" placeholder="Question (ex. : Où va-t-on en sortie ?)" maxlength="100"><input id="po" placeholder="Options séparées par des virgules"><button class="p" onclick="addPol()">Créer</button></div></div><div id="pl"></div>'};

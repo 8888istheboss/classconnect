@@ -1,7 +1,8 @@
 # ClassConnect (Vercel + PostgreSQL)
 
-Site de classe avec chat, salons, groupes, sondages, sorties laser game, League, super admin,
-codes d'invitation et **validation des nouveaux membres par l'admin**. Tout est vérifié côté serveur.
+Site de classe avec chat, salons, groupes, sondages, sorties laser game, League, défis quiz,
+comptes par pseudo/mot de passe et **validation des nouveaux membres par l'admin**. Tout est
+vérifié côté serveur.
 
 ## Déploiement cloud obligatoire
 
@@ -24,6 +25,14 @@ de basculer vers un mode local.
 Les élèves peuvent créer un compte avec un pseudo et un mot de passe d'au moins 8 caractères.
 Le compte reste en attente jusqu'à son activation par le super admin dans l'onglet **Super admin**.
 Les mots de passe sont hachés côté serveur et ne sont jamais enregistrés en clair.
+
+## Jeux et défis
+
+Les membres activés peuvent lancer un duel de six questions ou un défi quotidien de 1 à 7 jours.
+Un autre membre rejoint un défi en attente ; les bonnes réponses valent 10 points et sont évaluées
+par l'API, pas par le navigateur. Les parties se mettent à jour par interrogation de l'API toutes
+les deux secondes lorsque l'onglet Défis est ouvert. Les défis et scores sont enregistrés dans la
+table PostgreSQL `games`.
 
 Ne place jamais `DATABASE_URL`, `SESSION_SECRET` ou `SUPERADMIN_CODE` dans les fichiers du
 projet ou dans Git. Si l'API `/api/session` répond avec une erreur de connexion PostgreSQL,
