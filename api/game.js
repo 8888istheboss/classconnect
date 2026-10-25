@@ -1,195 +1,215 @@
+// Défis quiz : duel (6 questions), défi quotidien (1 question par jour) et quiz solo de la League.
+// Les bonnes réponses ne quittent jamais le serveur avant que le joueur ait répondu.
 import crypto from "node:crypto";
-import { sql, who, body } from "./_lib.js";
+import { api, actions, sql, fail, int, id, newId, requireActive } from "./_lib/core.js";
+import { QUESTIONS } from "./_lib/questions.js";
 
 const DAY = 86400000;
-const QUESTIONS = [
-  ["Quelle est la capitale de l’Italie ?", ["Rome", "Milan", "Naples", "Venise"], 0],
-  ["Quel est le plus grand océan ?", ["Pacifique", "Atlantique", "Indien", "Arctique"], 0],
-  ["Quelle planète est la plus proche du Soleil ?", ["Mercure", "Vénus", "Mars", "Terre"], 0],
-  ["Qui a peint la Joconde ?", ["Léonard de Vinci", "Michel-Ange", "Picasso", "Van Gogh"], 0],
-  ["Combien font 7 × 8 ?", ["56", "54", "48", "63"], 0],
-  ["Quelle est la racine carrée de 81 ?", ["9", "8", "7", "10"], 0],
-  ["En quelle année a commencé la Première Guerre mondiale ?", ["1914", "1918", "1939", "1905"], 0],
-  ["Quel gaz les plantes absorbent-elles ?", ["Dioxyde de carbone", "Oxygène", "Azote", "Hélium"], 0],
-  ["Quel est l’animal terrestre le plus rapide ?", ["Le guépard", "Le lion", "Le cheval", "L’autruche"], 0],
-  ["Quel organe pompe le sang ?", ["Le cœur", "Le foie", "Les poumons", "Le cerveau"], 0],
-  ["Combien font 12 × 12 ?", ["144", "124", "132", "154"], 0],
-  ["Quel est le symbole chimique de l’eau ?", ["H₂O", "CO₂", "O₂", "NaCl"], 0],
-  ["Combien de côtés a un hexagone ?", ["6", "5", "7", "8"], 0],
-  ["Quel est le plus grand continent ?", ["Asie", "Afrique", "Europe", "Amérique du Sud"], 0],
-];
+const POINTS = 10;
+const TYPES = { duel: { players: 2, questions: 6 }, daily: { players: 2 }, solo: { players: 1, questions: 6 } };
 
-const fail = (res, status, message) => res.status(status).json({ error: message });
-const member = (me) => me.sa || me.role === "member" || me.role === "mod";
+function pickQuestions(count) {
+  const pool = QUESTIONS.map((q) => ({ q, k: crypto.randomInt(1e9) })).sort((a, b) => a.k - b.k).slice(0, count);
+  return pool.map(({ q }) => {
+    const order = q[1].map((text, i) => ({ text, i, k: crypto.randomInt(1e9) })).sort((a, b) => a.k - b.k);
+    return { prompt: q[0], options: order.map((o) => o.text), answer: order.findIndex((o) => o.i === 0) };
+  });
+}
 
-function publicState(data, uid, now) {
-  const mine = data.players.find((p) => p.uid === uid);
-  const opponent = data.players.find((p) => p.uid !== uid);
-  if (!mine) return null;
-  const myCount = mine.answers.length;
-  const opponentCount = opponent ? opponent.answers.length : 0;
-  const questionIndex = data.type === "daily"
-    ? Math.min(data.days - 1, Math.floor((now - data.startedAt) / DAY))
-    : myCount;
-  const answered = data.type === "daily"
-    ? mine.answers.some((a) => a.day === questionIndex)
-    : myCount > questionIndex;
-  const isFinished = data.status === "complete" || (data.type === "daily" && now >= data.endsAt);
-  const question = data.status === "active" && !isFinished && !answered && questionIndex < data.questions.length
-    ? { index: questionIndex, prompt: data.questions[questionIndex].prompt, options: data.questions[questionIndex].options }
-    : null;
+const valid = (g) => g && Array.isArray(g.players) && Array.isArray(g.questions) && TYPES[g.type];
+const needed = (g) => (g.type === "daily" ? g.days : g.questions.length);
+
+function currentIndex(g, player, now) {
+  if (g.type !== "daily") return player.answers.length;
+  return Math.min(g.days - 1, Math.floor((now - g.startedAt) / DAY));
+}
+
+function isOver(g, now) {
+  if (g.status === "complete") return true;
+  if (g.status !== "active") return false;
+  if (g.type === "daily" && now >= g.endsAt) return true;
+  return g.players.length === TYPES[g.type].players && g.players.every((p) => p.answers.length >= needed(g));
+}
+
+function winner(g) {
+  if (g.players.length < 2) return null;
+  const [a, b] = g.players;
+  if (a.score === b.score) return { draw: true };
+  const w = a.score > b.score ? a : b;
+  return { uid: w.uid, name: w.name };
+}
+
+function summary(g, uid, now) {
+  const over = isOver(g, now);
+  const mine = g.players.some((p) => p.uid === uid);
   return {
-    id: data.id,
-    type: data.type,
-    status: isFinished ? "complete" : data.status,
-    createdAt: data.createdAt,
-    endsAt: data.endsAt,
-    days: data.days,
-    players: data.players.map((p) => ({ name: p.name, score: p.score, progress: p.answers.length })),
-    myIndex: data.players.findIndex((p) => p.uid === uid),
-    myProgress: myCount,
-    opponentProgress: opponentCount,
-    questionIndex,
+    id: g.id, type: g.type, days: g.days, createdAt: g.createdAt, endsAt: g.endsAt,
+    status: over ? "complete" : g.status,
+    players: g.players.map((p) => ({ name: p.name, score: p.score, progress: p.answers.length })),
+    mine,
+    canJoin: g.status === "waiting" && !mine,
+    canCancel: g.status === "waiting" && g.players[0].uid === uid,
+    winner: over ? winner(g) : null,
+  };
+}
+
+function state(g, uid, now) {
+  const me = g.players.find((p) => p.uid === uid);
+  if (!me) return null;
+  const over = isOver(g, now);
+  const index = currentIndex(g, me, now);
+  const answered = g.type === "daily" ? me.answers.some((a) => a.q === index) : me.answers.length > index;
+  const q = g.status === "active" && !over && !answered && index < g.questions.length ? g.questions[index] : null;
+  return {
+    ...summary(g, uid, now),
+    myIndex: g.players.indexOf(me),
+    total: needed(g),
+    myProgress: me.answers.length,
+    questionIndex: index,
     answered,
-    question,
-    winner: isFinished
-      ? data.players[0].score === data.players[1]?.score ? "draw"
-        : data.players[0].score > data.players[1]?.score ? data.players[0].uid
-          : data.players[1]?.uid
-      : null,
-    winnerName: isFinished
-      ? data.players[0].score === data.players[1]?.score ? null
-        : data.players[0].score > data.players[1]?.score ? data.players[0].name
-          : data.players[1]?.name
+    question: q ? { index, prompt: q.prompt, options: q.options } : null,
+    // Correction visible seulement une fois la partie terminée.
+    review: over
+      ? g.questions.slice(0, needed(g)).map((qq, i) => ({
+          prompt: qq.prompt, options: qq.options, answer: qq.answer,
+          choice: (me.answers.find((a) => a.q === i) || {}).choice ?? null,
+        }))
       : null,
   };
 }
 
-function summary(data, uid) {
-  const own = data.players.some((p) => p.uid === uid);
-  return {
-    id: data.id,
-    type: data.type,
-    status: data.status,
-    title: data.title,
-    days: data.days,
-    createdAt: data.createdAt,
-    endsAt: data.endsAt,
-    players: data.players.map((p) => ({ name: p.name, score: p.score, progress: p.answers.length })),
-    canJoin: data.status === "waiting" && !own && data.players.length < 2,
-    winnerName: data.status === "complete" && data.players.length === 2
-      ? data.players[0].score === data.players[1].score ? "Égalité"
-        : data.players[0].score > data.players[1].score ? data.players[0].name : data.players[1].name
-      : null,
-  };
+// Points de League : +10 par bonne réponse, +1 partie jouée à la fin.
+function addPoints(tx, uid, pts, played, now) {
+  if (uid === "sa") return null;
+  return tx`
+    insert into league(uid, pts, played, upd) values(${uid}, ${pts}, ${played}, ${now})
+    on conflict(uid) do update set pts = league.pts + ${pts}, played = league.played + ${played}, upd = ${now}, del = false`;
 }
 
-export default async function handler(req, res) {
-  try {
-    const me = await who(req, res);
-    if (!member(me)) return fail(res, 403, "Seuls les membres actifs peuvent jouer.");
+async function finish(tx, g, now) {
+  if (g.awarded) return;
+  g.status = "complete";
+  g.awarded = true;
+  for (const p of g.players) await addPoints(tx, p.uid, 0, 1, now);
+}
+
+const save = (tx, g, now) =>
+  tx`update quiz_games set data = ${sql.json(g)}::jsonb, status = ${g.status},
+       uids = ${tx.array(g.players.map((p) => p.uid))}, upd = ${now} where id = ${g.id}`;
+
+async function locked(tx, gameId) {
+  const [row] = await tx`select data from quiz_games where id = ${id(gameId)} for update`;
+  if (!row || !valid(row.data)) fail(404, "Défi introuvable.");
+  return row.data;
+}
+
+export default api({
+  async GET({ me, query }) {
+    requireActive(me);
     const now = Date.now();
-
-    if (req.method === "GET" && req.query.op === "list") {
-      const rows = await sql`select data from games order by created_at desc limit 100`;
-      const games = rows.map((r) => r.data).filter((g) =>
-        g.status === "waiting" || g.players.some((p) => p.uid === me.uid)
-      ).map((g) => summary(g, me.uid)).slice(0, 30);
-      return res.json({ games });
+    if (query.op === "list") {
+      const rows = await sql`
+        select data from quiz_games
+        where type <> 'solo' and (status = 'waiting' or ${me.id} = any(uids))
+        order by created desc limit 40`;
+      return { games: rows.map((r) => r.data).filter(valid).map((g) => summary(g, me.id, now)) };
     }
-
-    const b = body(req);
-    if (req.method === "POST" && b.action === "create") {
-      const type = b.type;
-      if (type !== "duel" && type !== "daily") return fail(res, 400, "Type de défi invalide.");
-      const days = type === "daily" ? Number(b.days) : 1;
-      if (!Number.isInteger(days) || days < 1 || days > 7) return fail(res, 400, "Choisis une durée de 1 à 7 jours.");
-      const recent = (await sql`select count(*)::int as n from games where created_at>${now - 3600000} and data->'players' @> ${JSON.stringify([{ uid: me.uid }])}::jsonb`)[0].n;
-      if (recent >= 20) return fail(res, 429, "Tu as créé beaucoup de défis récemment. Réessaie dans un peu plus tard.");
-      const selected = crypto.randomBytes(QUESTIONS.length);
-      const questions = QUESTIONS.map((q, i) => ({ q, key: selected[i] })).sort((a, z) => a.key - z.key).slice(0, type === "daily" ? days : 6)
-        .map(({ q }) => {
-          const order = Array.from(crypto.randomBytes(q[1].length)).map((key, i) => ({ key, i })).sort((a, z) => a.key - z.key);
-          return { prompt: q[0], options: order.map(({ i }) => q[1][i]), answer: order.findIndex(({ i }) => i === q[2]) };
+    if (query.id) {
+      const [row] = await sql`select data from quiz_games where id = ${id(query.id)}`;
+      if (!row || !valid(row.data)) fail(404, "Défi introuvable.");
+      const g = row.data;
+      const s = state(g, me.id, now);
+      if (!s) fail(403, "Tu ne participes pas à ce défi.");
+      if (g.status === "active" && isOver(g, now) && !g.awarded) {
+        await sql.begin(async (tx) => {
+          const fresh = await locked(tx, g.id);
+          if (!fresh.awarded && isOver(fresh, now)) { await finish(tx, fresh, now); await save(tx, fresh, now); }
         });
-      const id = crypto.randomBytes(12).toString("hex");
-      const data = {
-        id, type, title: type === "duel" ? "Duel quiz" : "Défi quotidien",
-        status: "waiting", days, createdAt: now, startedAt: null, endsAt: null,
-        players: [{ uid: me.uid, name: me.name, score: 0, answers: [] }],
-        questions,
-      };
-      await sql`insert into games(id,data,created_at,upd) values(${id},${JSON.stringify(data)}::jsonb,${now},${now})`;
-      return res.status(201).json({ game: summary(data, me.uid) });
-    }
-
-    if (req.method === "POST" && b.action === "join") {
-      const id = String(b.id || "");
-      const joined = await sql.begin(async (tx) => {
-        const row = (await tx`select data from games where id=${id} for update`)[0];
-        if (!row) return { error: "Défi introuvable.", status: 404 };
-        const data = row.data;
-        if (data.status !== "waiting" || data.players.length !== 1) return { error: "Ce défi n’est plus disponible.", status: 409 };
-        if (data.players[0].uid === me.uid) return { error: "Tu ne peux pas rejoindre ton propre défi.", status: 400 };
-        data.players.push({ uid: me.uid, name: me.name, score: 0, answers: [] });
-        data.status = "active";
-        data.startedAt = now;
-        data.endsAt = data.type === "daily" ? now + data.days * DAY : null;
-        await tx`update games set data=${JSON.stringify(data)}::jsonb, upd=${now} where id=${id}`;
-        return { data };
-      });
-      if (joined.error) return fail(res, joined.status, joined.error);
-      return res.json({ game: summary(joined.data, me.uid) });
-    }
-
-    if (req.method === "POST" && b.action === "answer") {
-      const id = String(b.id || "");
-      const choice = b.choice;
-      const result = await sql.begin(async (tx) => {
-        const row = (await tx`select data from games where id=${id} for update`)[0];
-        if (!row) return { error: "Défi introuvable.", status: 404 };
-        const data = row.data;
-        const player = data.players.find((p) => p.uid === me.uid);
-        if (!player) return { error: "Tu ne participes pas à ce défi.", status: 403 };
-        if (data.status !== "active" || data.players.length !== 2) return { error: "Ce défi n’est pas en cours.", status: 409 };
-        if (data.type === "daily" && now >= data.endsAt) {
-          data.status = "complete";
-          await tx`update games set data=${JSON.stringify(data)}::jsonb, upd=${now} where id=${id}`;
-          return { error: "Ce défi est terminé.", status: 409 };
-        }
-        const index = data.type === "daily" ? Math.floor((now - data.startedAt) / DAY) : player.answers.length;
-        if (index >= data.questions.length) return { error: "Tu as déjà terminé tes questions.", status: 409 };
-        if (data.type === "daily" && player.answers.some((a) => a.day === index)) return { error: "Tu as déjà répondu aujourd’hui.", status: 409 };
-        if (typeof choice !== "number" || !Number.isInteger(choice) || choice < 0 || choice >= data.questions[index].options.length) return { error: "Réponse invalide.", status: 400 };
-        const correct = choice === data.questions[index].answer;
-        player.answers.push({ day: index, choice, correct, at: now });
-        if (correct) player.score += 10;
-        const complete = data.players.every((p) => data.type === "daily"
-          ? p.answers.length >= data.days
-          : p.answers.length >= data.questions.length);
-        if (complete) data.status = "complete";
-        await tx`update games set data=${JSON.stringify(data)}::jsonb, upd=${now} where id=${id}`;
-        return { state: publicState(data, me.uid, now), correct };
-      });
-      if (result.error) return fail(res, result.status, result.error);
-      return res.json(result);
-    }
-
-    if (req.method === "GET" && req.query.id) {
-      const id = String(req.query.id);
-      const row = (await sql`select data from games where id=${id}`)[0];
-      if (!row) return fail(res, 404, "Défi introuvable.");
-      const state = publicState(row.data, me.uid, now);
-      if (!state) return fail(res, 403, "Tu ne participes pas à ce défi.");
-      if (row.data.status === "active" && row.data.type === "daily" && now >= row.data.endsAt) {
-        await sql`update games set data=jsonb_set(data,'{status}','"complete"'::jsonb),upd=${now} where id=${id}`;
-        state.status = "complete";
       }
-      return res.json({ state });
+      return { state: s };
     }
+    fail(400, "Requête inconnue.");
+  },
 
-    return fail(res, 400, "Action de jeu inconnue.");
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-}
+  POST: (ctx) => {
+    requireActive(ctx.me);
+    return actions({
+      async create({ me, body }) {
+        const type = body.type;
+        if (!TYPES[type]) fail(400, "Type de défi invalide.");
+        const now = Date.now();
+        const days = type === "daily" ? int(body.days, 1, 7, "La durée") : 1;
+        const [{ n }] = await sql`select count(*)::int as n from quiz_games where created > ${now - 3600e3} and ${me.id} = any(uids)`;
+        if (n >= 30) fail(429, "Tu as lancé beaucoup de parties. Réessaie un peu plus tard.");
+        // Ménage : vieilles parties solo et défis jamais rejoints.
+        await sql`delete from quiz_games where (type = 'solo' and created < ${now - 2 * DAY}) or (status = 'waiting' and created < ${now - 14 * DAY})`;
+
+        const solo = type === "solo";
+        const g = {
+          id: newId(), type, days, createdAt: now,
+          status: solo ? "active" : "waiting",
+          startedAt: solo ? now : null, endsAt: null,
+          players: [{ uid: me.id, name: me.displayName, score: 0, answers: [] }],
+          questions: pickQuestions(type === "daily" ? days : TYPES[type].questions),
+        };
+        await sql`insert into quiz_games(id, type, status, uids, data, created, upd)
+          values(${g.id}, ${type}, ${g.status}, ${sql.array([me.id])}, ${sql.json(g)}::jsonb, ${now}, ${now})`;
+        return { game: summary(g, me.id, now) };
+      },
+
+      async join({ me, body }) {
+        const now = Date.now();
+        const g = await sql.begin(async (tx) => {
+          const g = await locked(tx, body.id);
+          if (g.status !== "waiting" || g.players.length !== 1) fail(409, "Ce défi n'est plus disponible.");
+          if (g.players[0].uid === me.id) fail(400, "Tu ne peux pas rejoindre ton propre défi.");
+          g.players.push({ uid: me.id, name: me.displayName, score: 0, answers: [] });
+          g.status = "active";
+          g.startedAt = now;
+          g.endsAt = g.type === "daily" ? now + g.days * DAY : null;
+          await save(tx, g, now);
+          return g;
+        });
+        return { game: summary(g, me.id, now) };
+      },
+
+      async cancel({ me, body }) {
+        const rows = await sql`delete from quiz_games where id = ${id(body.id)} and status = 'waiting' and uids[1] = ${me.id} returning id`;
+        if (!rows.length) fail(409, "Ce défi ne peut plus être annulé.");
+        return { ok: true };
+      },
+
+      async answer({ me, body }) {
+        const now = Date.now();
+        const result = await sql.begin(async (tx) => {
+          const g = await locked(tx, body.id);
+          const player = g.players.find((p) => p.uid === me.id);
+          if (!player) fail(403, "Tu ne participes pas à ce défi.");
+          if (g.status !== "active") fail(409, "Ce défi n'est pas en cours.");
+          if (isOver(g, now)) {
+            // On enregistre la fin de partie (pas d'exception ici, sinon la transaction serait annulée).
+            await finish(tx, g, now);
+            await save(tx, g, now);
+            return { over: true };
+          }
+          const index = currentIndex(g, player, now);
+          if (index >= g.questions.length || player.answers.length >= needed(g)) fail(409, "Tu as déjà répondu à toutes tes questions.");
+          if (g.type === "daily" && player.answers.some((a) => a.q === index)) fail(409, "Tu as déjà répondu aujourd'hui. Reviens demain !");
+          const q = g.questions[index];
+          const choice = int(body.choice, 0, q.options.length - 1, "La réponse");
+          const correct = choice === q.answer;
+          player.answers.push({ q: index, choice, correct, at: now });
+          if (correct) {
+            player.score += POINTS;
+            await addPoints(tx, me.id, POINTS, 0, now);
+          }
+          if (isOver(g, now)) await finish(tx, g, now);
+          await save(tx, g, now);
+          return { correct, answer: q.answer, state: state(g, me.id, now) };
+        });
+        if (result.over) fail(409, "Ce défi est terminé.");
+        return result;
+      },
+    })(ctx);
+  },
+});
